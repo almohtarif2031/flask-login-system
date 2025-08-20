@@ -92,7 +92,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 # @app.route('/static/uploads/<path:filename>')
 # def serve_uploads(filename):
 #     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
+db = SQLAlchemy(app)
 # جدول الموظفين
 class Employee(db.Model):
     __tablename__ = 'employees'
@@ -6328,4 +6328,5 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
