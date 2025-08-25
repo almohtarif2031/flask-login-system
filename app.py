@@ -57,6 +57,8 @@ CORS(app,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     expose_headers=["Content-Disposition"],
     max_age=600)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:123456@localhost/almohtarif_company_db4'
 
 #app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -6328,5 +6330,6 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
