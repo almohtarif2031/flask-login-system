@@ -1722,7 +1722,7 @@ def add_employee():
             regular_leave_hours=parse_int(data.get('regular_leave_hours')),
             sick_leave_hours=parse_int(data.get('sick_leave_hours')),
             emergency_leave_hours=parse_int(data.get('emergency_leave_hours')),
-            profile_image=image_filename,
+            profile_image=image_url,
             status=data.get('status', 'off'),
             is_leave=data.get('is_leave', 'off'),
             is_vacation=data.get('is_vacation', 'off'),
@@ -6330,6 +6330,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
