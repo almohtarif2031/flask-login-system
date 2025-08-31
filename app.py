@@ -327,8 +327,8 @@ class SalaryComponent(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    base_salary = db.Column(db.Integer, nullable=False)
-    hour_salary = db.Column(db.Numeric(15, 10), nullable=False)  # DECIMAL(15,10) دقة أعلى مع 10 خانات عشرية
+    base_salary = db.Column(db.Integer,default=0, nullable=False)
+    hour_salary = db.Column(db.Numeric(15, 10),default=0.0, nullable=False)  # DECIMAL(15,10) دقة أعلى مع 10 خانات عشرية
     overtime_rate = db.Column(db.Float)  # نسبة العمل الإضافي العادي
     holiday_overtime_rate = db.Column(db.Float)  # نسبة العمل الإضافي في العطلات
     internet_allowance = db.Column(db.Integer, default=0)  # بدل الإنترنت
