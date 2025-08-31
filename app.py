@@ -2006,7 +2006,6 @@ def get_employee(employee_id):
     except Exception as e:
         print(f"Error occurred: {e}")
         return jsonify({'message': str(e)}), 500
-
 @app.route('/api/employee/<int:employee_id>', methods=['PUT'])
 def update_employee(employee_id):
     try:
@@ -2027,6 +2026,22 @@ def update_employee(employee_id):
         employee.study_major = data.get('study_major', employee.study_major)
         employee.governorate = data.get('governorate', employee.governorate)
         employee.relative_phone = data.get('relative_phone', employee.relative_phone)
+        employee.date_of_birth = data.get('date_of_birth', employee.date_of_birth)
+        employee.national_id = data.get('national_id', employee.national_id)
+        employee.nationality = data.get('nationality', employee.nationality)
+        employee.marital_status = data.get('marital_status', employee.marital_status)
+        employee.relative_relation = data.get('relative_relation', employee.relative_relation)
+        employee.position_english = data.get('position_english', employee.position_english)
+        employee.job_level = data.get('job_level', employee.job_level)
+        employee.employee_status = data.get('employee_status', employee.employee_status)
+        employee.work_location = data.get('work_location', employee.work_location)
+        employee.work_nature = data.get('work_nature', employee.work_nature)
+        employee.promotion = data.get('promotion', employee.promotion)
+        employee.career_stages = data.get('career_stages', employee.career_stages)
+        employee.trainings = data.get('trainings', employee.trainings)
+        employee.external_privileges = data.get('external_privileges', employee.external_privileges)
+        employee.special_leave_record = data.get('special_leave_record', employee.special_leave_record)
+        employee.drive_folder_link = data.get('drive_folder_link', employee.drive_folder_link)
 
         # تحديث أو رفع صورة الموظف
         if 'profile_image' in data and data['profile_image']:
@@ -2085,6 +2100,8 @@ def update_employee(employee_id):
             employee.date_of_joining = date.fromisoformat(data['date_of_joining'])
         if 'end_of_service_date' in data:
             employee.end_of_service_date = date.fromisoformat(data['end_of_service_date'])
+        if 'date_of_birth' in data and data['date_of_birth']:
+            employee.date_of_birth = date.fromisoformat(data['date_of_birth'])
 
         # تحديث أو إنشاء بيانات الراتب
         salary_data = data.get('salary_components')
@@ -2150,7 +2167,23 @@ def update_employee(employee_id):
                 # ✅ الحقول الجديدة
                 "study_major": employee.study_major,
                 "governorate": employee.governorate,
-                "relative_phone": employee.relative_phone
+                "relative_phone": employee.relative_phone,
+                "date_of_birth": employee.date_of_birth.strftime('%Y-%m-%d') if employee.date_of_birth else None,
+                "national_id": employee.national_id,
+                "nationality": employee.nationality,
+                "marital_status": employee.marital_status,
+                "relative_relation": employee.relative_relation,
+                "position_english": employee.position_english,
+                "job_level": employee.job_level,
+                "employee_status": employee.employee_status,
+                "work_location": employee.work_location,
+                "work_nature": employee.work_nature,
+                "promotion": employee.promotion,
+                "career_stages": employee.career_stages,
+                "trainings": employee.trainings,
+                "external_privileges": employee.external_privileges,
+                "special_leave_record": employee.special_leave_record,
+                "drive_folder_link": employee.drive_folder_link
             })
             session.modified = True
 
@@ -6441,6 +6474,4 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
 
