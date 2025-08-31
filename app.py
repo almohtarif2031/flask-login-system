@@ -49,14 +49,14 @@ cloudinary.config(
     api_key = '154189674494148',       # ضع هنا API Key
     api_secret = 'uCh0dqbPmwW0I2yw0q-DQNTckdI',  # ضع هنا API Secret
     secure = True
-)
-CORS(app,
-    supports_credentials=True,
-    origins = ["https://loginsystem-almohtarif.netlify.app"],  # هذه واجهة React المحلية
-    allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    expose_headers=["Content-Disposition"],
-    max_age=600)
+# تمكين CORS لدعم الطلبات من الـ frontend
+CORS(app, 
+     supports_credentials=True,  # مهم لدعم الكوكيز
+     origins=["https://loginsystem-almohtarif.netlify.app/"],
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     expose_headers=["Content-Disposition"],
+     max_age=600)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:123456@localhost/almohtarif_company_db4'
@@ -94,7 +94,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 # @app.route('/static/uploads/<path:filename>')
 # def serve_uploads(filename):
 #     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-db = SQLAlchemy(app)
+db = SQLAlchemy(app) 
 # جدول الموظفين
 class Employee(db.Model):
     __tablename__ = 'employees'
@@ -109,10 +109,11 @@ class Employee(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.dep_id'), nullable=False)
     position = db.Column(db.String(100), nullable=False)
+    position_english = db.Column(db.String(100), nullable=False)  # المنصب الوظيفي بالانكليزية
     status = db.Column(db.String(10), default='off')  # قيمته إما 'on' أو 'off'
     # ✅ يجب استخدام db.String وليس String فقط
     role = db.Column(db.String(20), nullable=False)
-
+    end_of_service_date = db.Column(db.Date, nullable=True)
     bank_account = db.Column(db.String(100))
     address = db.Column(db.String(255))
     weekly_day_off = db.Column(db.String(10), nullable=False)
@@ -122,6 +123,25 @@ class Employee(db.Model):
     work_end_time = db.Column(db.Time, nullable=False)
     date_of_joining = db.Column(db.Date, nullable=False)
     notes = db.Column(db.Text, nullable=True)
+    # ✅ الحقول الجديدة المطلوبة
+    study_major = db.Column(db.String(150), nullable=False)  # الدراسة والتخصص
+    governorate = db.Column(db.String(100), nullable=False)  # المحافظة
+    relative_phone = db.Column(db.String(20))  # رقم شخص قريب (اختياري)
+    relative_relation = db.Column(db.String(50))  # صلة القرابة (اختياري)
+    date_of_birth = db.Column(db.Date, nullable=False)  # المواليد
+    national_id = db.Column(db.String(20), nullable=False)  # الرقم الوطني
+    job_level = db.Column(db.String(20), nullable=False)  # الدرجة الوظيفية
+    promotion = db.Column(db.String(100))  # الترقية (اختياري)
+    career_stages = db.Column(db.Text)  # المراحل الوظيفية (اختياري)
+    employee_status = db.Column(db.String(20), nullable=False)  # وضع الموظف
+    work_location = db.Column(db.String(20), nullable=False)  # مكان العمل
+    work_nature = db.Column(db.String(20), nullable=False)  # طبيعة العمل
+    marital_status = db.Column(db.String(15))  # الحالة الاجتماعية (اختياري)
+    nationality = db.Column(db.String(50))  # الجنسية (اختياري)
+    trainings = db.Column(db.Text)  # تدريبات (اختياري)
+    external_privileges = db.Column(db.Text)  # امتيازات خارجية (اختياري)
+    special_leave_record = db.Column(db.Text)  # سجل إجازات خاصة (اختياري)
+    drive_folder_link = db.Column(db.String(255))  # رابط مجلد الموظف درايف (اختياري)
     is_leave = db.Column(db.String(10), default='off')  # إجازة ساعية
     is_vacation = db.Column(db.String(10), default='off')  # إجازة رسمية أو سنوية
     is_weekly_day_off = db.Column(db.String(10), default='off')  # يوم عطلة أسبوعية
@@ -142,7 +162,6 @@ class Employee(db.Model):
     supervisor_profile = db.relationship('Supervisor', back_populates='employee',cascade="all, delete-orphan", uselist=False)
     additional_attendance_records = db.relationship("AdditionalAttendanceRecord",back_populates="employee",cascade="all, delete-orphan")
     custom_fields = db.relationship('EmployeeCustomField', back_populates='employee', cascade='all, delete-orphan')
-
 class EmployeeCustomField(db.Model):
     __tablename__ = 'employee_custom_fields'  # ✅ يجب أن تبدأ بـ __tablename__
 
@@ -483,6 +502,22 @@ def create_compensation_leave_request():
                     message=f"طلب تعويض إجازة جديد من الموظف {employee.full_name_arabic}"
                 )
                 db.session.add(notification)
+                                # إرسال إشعار تلغرام
+                supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
+                if supervisor_employee and supervisor_employee.telegram_chatid:
+                    telegram_message = f"""
+        🔔 <b>طلب تعويض إجازة جديد</b>
+        ━━━━━━━━━━━━━━━━━━━━
+        • الموظف: {employee.full_name_arabic}
+        • تاريخ تعويض الإجازة : {request_date.strftime('%Y-%m-%d')}
+        • الوقت: من {datetime.strptime(data['start_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')} إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
+        • المدة: {hours_requested:.2f} ساعة
+        • الملاحظة: {data['note']}
+        ━━━━━━━━━━━━━━━━━━━━
+        {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+        𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                    """
+                    send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
             db.session.commit()
         
         return jsonify({
@@ -1630,23 +1665,29 @@ def add_employee():
         data = request.form
         print("📦 البيانات المستلمة:", data.to_dict())
         profile_image = request.files.get('profile_image')
-
+        
         # التحقق من الحقول المطلوبة
-        required_fields = ['full_name_arabic', 'full_name_english', 'employee_number', 'email', 'password']
+        required_fields = [
+            'full_name_arabic', 'full_name_english', 'employee_number', 'email', 'password',
+            'phone', 'department_id', 'position', 'position_english', 'role', 'weekly_day_off',
+            'work_start_time', 'work_end_time', 'date_of_joining', 'study_major', 'governorate',
+            'date_of_birth', 'national_id', 'job_level', 'employee_status', 'work_location', 'work_nature'
+        ]
+        
         errors = {}
         for field in required_fields:
             if not data.get(field):
                 errors[field] = f"الحقل {field} مطلوب."
-
+        
         if errors:
             return jsonify({'errors': errors}), 400
-
+        
         # التحقق من تكرار البريد الإلكتروني
         existing_employee_email = Employee.query.filter_by(email=data.get('email')).first()
         if existing_employee_email:
             return jsonify({'errors': {'email': 'هذا البريد الإلكتروني مستخدم بالفعل.'}}), 400
-
-        # 🔥 التحقق من تكرار الرقم الوظيفي
+        
+        # التحقق من تكرار الرقم الوظيفي
         existing_employee_number = Employee.query.filter_by(employee_number=data.get('employee_number')).first()
         if existing_employee_number:
             return jsonify({
@@ -1654,13 +1695,22 @@ def add_employee():
                     'employee_number': 'هذا الرقم الوظيفي مستخدم بالفعل، يرجى استخدام رقم آخر.'
                 }
             }), 400
-
+        
+        # التحقق من تكرار الرقم الوطني
+        existing_national_id = Employee.query.filter_by(national_id=data.get('national_id')).first()
+        if existing_national_id:
+            return jsonify({
+                'errors': {
+                    'national_id': 'هذا الرقم الوطني مستخدم بالفعل.'
+                }
+            }), 400
+        
         # التحقق من وجود مشرف آخر في القسم
         if data.get('role') == 'مشرف' and data.get('department_id'):
             existing_supervisor = Employee.query.filter(
                 Employee.department_id == data.get('department_id'),
                 Employee.role == 'مشرف',
-                Employee.id != None  # تجنب سجلات فارغة
+                Employee.id != None
             ).first()
             
             if existing_supervisor:
@@ -1669,69 +1719,99 @@ def add_employee():
                         'role': 'تم رفض العملية: لا يمكن وجود أكثر من مشرف في نفس القسم.'
                     }
                 }), 400
-
-       # رفع الصورة إن وجدت
+        
+        # رفع الصورة إن وجدت
         image_url = None
         if profile_image:
             result = cloudinary.uploader.upload(profile_image)
             image_url = result["secure_url"]
-
+        
+        # دوال المساعدة للتحويل
         def parse_int(value):
             try:
                 return int(value)
             except (ValueError, TypeError):
                 return 0
-
-        def parse_int_or_zero(value):
-            try:
-                return int(value)
-            except (ValueError, TypeError):
-                return 0
-
-        # تحويل التواريخ والأرقام
-        def parse_date(value):
-            try:
-                return datetime.strptime(value, '%Y-%m-%d') if value else None
-            except ValueError:
-                return None
-
+        
         def parse_float_or_zero(value):
             try:
                 return float(value)
             except (ValueError, TypeError):
                 return 0.0
-        # إنشاء سجل الموظف
+        
+        def parse_date(value):
+            try:
+                return datetime.strptime(value, '%Y-%m-%d').date() if value else None
+            except ValueError:
+                return None
+        
+        def parse_time(value):
+            try:
+                return datetime.strptime(value, '%H:%M').time() if value else None
+            except ValueError:
+                return None
+        
+        # إنشاء سجل الموظف مع جميع الحقول
         new_employee = Employee(
+            # الحقول الأساسية
             full_name_arabic=data.get('full_name_arabic'),
             full_name_english=data.get('full_name_english'),
             employee_number=data.get('employee_number'),
             email=data.get('email'),
             password=data.get('password'),
+            profile_image=image_url,
             telegram_chatid=data.get('telegram_chatid'),
             phone=data.get('phone'),
-            department_id=data.get('department_id'),
+            department_id=parse_int(data.get('department_id')),
             position=data.get('position'),
+            position_english=data.get('position_english'),
             role=data.get('role'),
+            
+            # الحقول المالية والإدارية
             bank_account=data.get('bank_account'),
             address=data.get('address'),
             weekly_day_off=data.get('weekly_day_off'),
-            work_start_time=data.get('work_start_time'),
-            work_end_time=data.get('work_end_time'),
+            work_start_time=parse_time(data.get('work_start_time')),
+            work_end_time=parse_time(data.get('work_end_time')),
             date_of_joining=parse_date(data.get('date_of_joining')),
             notes=data.get('notes'),
-            regular_leave_hours=parse_int(data.get('regular_leave_hours')),
-            sick_leave_hours=parse_int(data.get('sick_leave_hours')),
-            emergency_leave_hours=parse_int(data.get('emergency_leave_hours')),
-            profile_image=image_url,
+            
+            # الحقول الجديدة المطلوبة
+            study_major=data.get('study_major'),
+            governorate=data.get('governorate'),
+            relative_phone=data.get('relative_phone'),
+            relative_relation=data.get('relative_relation'),
+            date_of_birth=parse_date(data.get('date_of_birth')),
+            national_id=data.get('national_id'),
+            job_level=data.get('job_level'),
+            promotion=data.get('promotion'),
+            career_stages=data.get('career_stages'),
+            employee_status=data.get('employee_status'),
+            work_location=data.get('work_location'),
+            work_nature=data.get('work_nature'),
+            marital_status=data.get('marital_status'),
+            nationality=data.get('nationality'),
+            trainings=data.get('trainings'),
+            external_privileges=data.get('external_privileges'),
+            special_leave_record=data.get('special_leave_record'),
+            drive_folder_link=data.get('drive_folder_link'),
+            
+            # حالات الإجازات
             status=data.get('status', 'off'),
             is_leave=data.get('is_leave', 'off'),
             is_vacation=data.get('is_vacation', 'off'),
-            is_weekly_day_off=data.get('is_weekly_day_off', 'off')
+            is_weekly_day_off=data.get('is_weekly_day_off', 'off'),
+            
+            # ساعات الإجازات
+            regular_leave_hours=parse_float_or_zero(data.get('regular_leave_hours')),
+            sick_leave_hours=parse_float_or_zero(data.get('sick_leave_hours')),
+            emergency_leave_hours=parse_float_or_zero(data.get('emergency_leave_hours'))
         )
-
+        
         db.session.add(new_employee)
         db.session.commit()
-                # ✅ إضافة الحقول المخصصة للموظف بعد إنشاءه
+        
+        # إضافة الحقول المخصصة للموظف بعد إنشاءه
         field_names = db.session.query(distinct(EmployeeCustomField.field_name)).all()
         for (field_name,) in field_names:
             new_custom_field = EmployeeCustomField(
@@ -1740,34 +1820,36 @@ def add_employee():
                 field_value=''  # افتراضي
             )
             db.session.add(new_custom_field)
+        
         db.session.commit()
-
-                # إضافة مكونات الراتب إذا وجدت
+        
+        # إضافة مكونات الراتب إذا وجدت
         salary_components = data.get('salary_components')
         if salary_components:
             try:
                 salary_data = json.loads(salary_components)
                 new_salary = SalaryComponent(
-                employee_id=new_employee.id,
-                base_salary=parse_int_or_zero(salary_data.get('base_salary')),
-                hour_salary=parse_float_or_zero(salary_data.get('hour_salary')),  # لأنه DECIMAL
-                overtime_rate=parse_float_or_zero(salary_data.get('overtime_rate')),  # 👍
-                holiday_overtime_rate=parse_float_or_zero(salary_data.get('holiday_overtime_rate')),  # 👍
-                internet_allowance=parse_float_or_zero(salary_data.get('internet_allowance')),
-                transport_allowance=parse_float_or_zero(salary_data.get('transport_allowance')),
-                depreciation_allowance=parse_int_or_zero(salary_data.get('depreciation_allowance')),
-                administrative_allowance=parse_int_or_zero(salary_data.get('administrative_allowance')),
-                administrative_deduction=parse_int_or_zero(salary_data.get('administrative_deduction'))
+                    employee_id=new_employee.id,
+                    base_salary=parse_int(salary_data.get('base_salary')),
+                    hour_salary=parse_float_or_zero(salary_data.get('hour_salary')),
+                    overtime_rate=parse_float_or_zero(salary_data.get('overtime_rate')),
+                    holiday_overtime_rate=parse_float_or_zero(salary_data.get('holiday_overtime_rate')),
+                    internet_allowance=parse_float_or_zero(salary_data.get('internet_allowance')),
+                    transport_allowance=parse_float_or_zero(salary_data.get('transport_allowance')),
+                    depreciation_allowance=parse_int(salary_data.get('depreciation_allowance')),
+                    administrative_allowance=parse_int(salary_data.get('administrative_allowance')),
+                    administrative_deduction=parse_int(salary_data.get('administrative_deduction'))
                 )
                 db.session.add(new_salary)
                 db.session.commit()
             except Exception as e:
                 print(f"❌ خطأ في إضافة مكونات الراتب: {str(e)}")
+        
         return jsonify({'message': 'تمت إضافة الموظف بنجاح'}), 201
-
+        
     except Exception as e:
         print("🚨 خطأ أثناء إضافة الموظف:")
-        traceback.print_exc()  # 👈 يطبع الخطأ الكامل بتفاصيل السطر
+        traceback.print_exc()
         return jsonify({'message': 'حدث خطأ أثناء إضافة الموظف', 'error': str(e)}), 500
 # 1. جلب جميع الموظفين
 @app.route('/api/employees', methods=['GET'])
@@ -3744,7 +3826,7 @@ def schedule_auto_checkout(employee_id, work_end_time):
                 work_end_dt = datetime.combine(today, work_end_time)
             
             work_end_dt = damascus_tz.localize(work_end_dt)
-            auto_checkout_time = work_end_dt + timedelta(minutes=2)
+            auto_checkout_time = work_end_dt + timedelta(minutes=30)
             
             # التحقق من أن الوقت لم يمر بعد
             current_time = datetime.now(damascus_tz)
@@ -4494,6 +4576,23 @@ def create_leave_request():
                     message=f"طلب إجازة جديد من الموظف {employee.full_name_arabic}"
                 )
                 db.session.add(notification)
+                                # إرسال الإشعار عبر التلغرام
+                supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
+                if supervisor_employee and supervisor_employee.telegram_chatid:
+                    telegram_message = f"""
+        🔔 <b>طلب إجازة جديد</b>
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        • الموظف: {employee.full_name_arabic}
+        • القسم: {employee.department.dep_name_arabic}
+        • نوع الإجازة: {data['type']}
+        • التصنيف: {data['classification']}
+        • المدة: {hours_requested} ساعة
+        • الملاحظة: {data['note']}
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+        𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                    """
+                    send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
             db.session.commit()
         
         if is_supervisor:
@@ -4728,52 +4827,6 @@ def get_current_employee():
 
     return jsonify(employee_data), 200
 # Routes for Additional Attendance Records (Overtime Requests)
-
-@app.route('/api/overtime-requests', methods=['GET'])
-def get_overtime_requests():
-    """جلب جميع طلبات الدوام الإضافي للموظف المسجل"""
-    try:
-        # التحقق من وجود session للموظف
-        if 'employee' not in session:
-            return jsonify({
-                'success': False,
-                'message': 'يجب تسجيل الدخول أولاً'
-            }), 401
-
-        # جلب معرف الموظف من الـ session
-        employee_id = session['employee']['id']
-        
-        # جلب جميع طلبات الدوام الإضافي للموظف مرتبة بالتاريخ الأحدث
-        requests = AdditionalAttendanceRecord.query.filter_by(
-            employee_id=employee_id
-        ).order_by(AdditionalAttendanceRecord.date.desc()).all()
-        
-        # تحويل البيانات إلى قاموس
-        requests_data = []
-        for request in requests:
-            requests_data.append({
-                'id': request.id,
-                'date': request.date.strftime('%Y-%m-%d'),
-                'start_time': request.start_time.strftime('%H:%M') if request.start_time else None,
-                'end_time': request.end_time.strftime('%H:%M') if request.end_time else None,
-                'hours_requested': round(request.add_attendance_minutes / 60, 2),  # تحويل الدقائق إلى ساعات
-                'note': request.notes,
-                'status': request.status,
-                'timestamp': request.date.strftime('%Y-%m-%d')
-            })
-        
-        return jsonify({
-            'success': True,
-            'requests': requests_data
-        }), 200
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'حدث خطأ أثناء جلب البيانات: {str(e)}'
-        }), 500
-
-
 @app.route('/api/overtime-requests', methods=['POST'])
 def create_overtime_request():
     """إنشاء طلب دوام إضافي جديد"""
@@ -4803,7 +4856,7 @@ def create_overtime_request():
         data = request.get_json()
        
         # التحقق من وجود البيانات المطلوبة
-        required_fields = ['date', 'start_time', 'end_time', 'hours_requested', 'note']
+        required_fields = ['date', 'start_time', 'end_time', 'note']
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({
@@ -4812,13 +4865,13 @@ def create_overtime_request():
                 }), 400
                 
         # تحويل التاريخ والوقت
-        from datetime import datetime, time
-       
+        from datetime import datetime
+        syria_tz = pytz.timezone("Asia/Damascus")
         request_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
         start_time = datetime.strptime(data['start_time'], '%H:%M').time()
         end_time = datetime.strptime(data['end_time'], '%H:%M').time()
        
-        # حساب الدقائق
+        # حساب الفرق بالدقائق
         start_datetime = datetime.combine(request_date, start_time)
         end_datetime = datetime.combine(request_date, end_time)
        
@@ -4828,6 +4881,9 @@ def create_overtime_request():
        
         time_diff = end_datetime - start_datetime
         total_minutes = int(time_diff.total_seconds() / 60)
+
+        # حساب الساعات المطلوبة
+        hours_requested = total_minutes / 60.0
         
         # التحقق من عدم وجود طلب آخر لنفس التاريخ
         existing_request = AdditionalAttendanceRecord.query.filter_by(
@@ -4870,7 +4926,6 @@ def create_overtime_request():
 
         # إرسال إشعارات للمشرفين إذا كان الموظف غير مشرف
         if not is_supervisor:
-            # استرجاع جميع المشرفين في قسم الموظف
             department_supervisors = Supervisor.query.filter_by(dep_id=employee.department_id).all()
             if department_supervisors:
                 for supervisor in department_supervisors:
@@ -4879,6 +4934,23 @@ def create_overtime_request():
                         message=f"طلب دوام إضافي جديد من الموظف {employee.full_name_arabic}"
                     )
                     db.session.add(notification)
+
+                    # إرسال إشعار تلغرام
+                    supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
+                    if supervisor_employee and supervisor_employee.telegram_chatid:
+                        telegram_message = f"""
+🔔 <b>طلب دوام إضافي جديد</b>
+━━━━━━━━━━━━━━━━━━━━
+• الموظف: {employee.full_name_arabic}
+• التاريخ: {request_date.strftime('%Y-%m-%d')}
+• الوقت: من {datetime.strptime(data['start_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')} إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
+• المدة: {hours_requested:.2f} ساعة
+• الملاحظة: {data['note']}
+━━━━━━━━━━━━━━━━━━━━
+{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                        """
+                        send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
                 db.session.commit()
         
         # رسالة مختلفة حسب نوع المستخدم
@@ -4891,6 +4963,7 @@ def create_overtime_request():
             'success': True,
             'message': message,
             'request_id': new_request.id,
+            'hours_requested': round(hours_requested, 2),
             'is_auto_approved': is_supervisor
         }), 201
         
@@ -4900,7 +4973,6 @@ def create_overtime_request():
             'success': False,
             'message': f'حدث خطأ أثناء إنشاء الطلب: {str(e)}'
         }), 500
-
 @app.route('/api/overtime-requests/<int:request_id>', methods=['PUT'])
 def update_overtime_request(request_id):
     """تعديل طلب دوام إضافي موجود"""
@@ -6152,16 +6224,17 @@ def justify_delay():
     if delay_record.employee_id != employee.id:
         return jsonify({"success": False, "message": "ليس لديك صلاحية لتبرير هذا التأخير"}), 403
 
-    # FIND SUPERVISORS FOR THE DEPARTMENT
+    # إيجاد المشرفين على القسم
     department_supervisors = Supervisor.query.filter_by(dep_id=employee.department_id).all()
     
-    # FIX: Assign supervisor to the delay record
+    # ربط المشرف الأول بالسجل
     if department_supervisors:
-        # Use the first supervisor found in the department
         delay_record.supervisor_id = department_supervisors[0].supervisor_ID
 
+    syria_tz = pytz.timezone("Asia/Damascus")
+
     if employee.role == 'مشرف':
-        # إذا كان مشرفاً: القبول التلقائي
+        # قبول تلقائي
         delay_record.status = 'Justified'
         delay_record.delay_note = justification_note
         db.session.commit()
@@ -6171,7 +6244,6 @@ def justify_delay():
             "immediately_justified": True
         })
     else:
-        # إذا كان موظفاً عادياً: إرسال إلى مشرف القسم
         if not department_supervisors:
             return jsonify({"success": False, "message": "لا يوجد مشرفين في القسم"}), 400
 
@@ -6186,8 +6258,27 @@ def justify_delay():
                 message=f"طلب تبرير تأخير جديد من الموظف {employee.full_name_arabic}",
             )
             db.session.add(notification)
-        
+
+            # إشعار تلغرام
+            supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
+            if supervisor_employee and supervisor_employee.telegram_chatid:
+                delay_minutes = getattr(delay_record, 'minutes_delayed', 'غير محددة')
+
+                telegram_message = f"""
+⏰ <b>طلب تبرير تأخير</b>
+━━━━━━━━━━━━━━━━━━━━
+• الموظف: {employee.full_name_arabic}
+• التاريخ: {delay_record.date.strftime('%Y-%m-%d') if delay_record.date else 'غير محدد'}
+• مدة التأخير: {delay_minutes} دقيقة
+• سبب التبرير: {justification_note}
+━━━━━━━━━━━━━━━━━━━━
+{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p").replace('AM','ص').replace('PM','م')}
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
+
         db.session.commit()
+
         return jsonify({
             "success": True,
             "message": "تم إرسال طلب التبرير إلى المشرف",
@@ -6330,7 +6421,4 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
 
