@@ -2021,54 +2021,53 @@ def update_employee(employee_id):
         employee.full_name_english = data.get('full_name_english', employee.full_name_english)
         employee.employee_number = data.get('employee_number', employee.employee_number)
         employee.email = data.get('email', employee.email)
-        employee.password = data.get('password', employee.password) 
-        # في دالة رفع أو تعديل صورة الموظف
+        employee.password = data.get('password', employee.password)
+
+        # ✅ الحقول الجديدة
+        employee.study_major = data.get('study_major', employee.study_major)
+        employee.governorate = data.get('governorate', employee.governorate)
+        employee.relative_phone = data.get('relative_phone', employee.relative_phone)
+
+        # تحديث أو رفع صورة الموظف
         if 'profile_image' in data and data['profile_image']:
             new_image = data['profile_image']
 
             if new_image.startswith('data:image'):
                 try:
-                    # استخراج بيانات الصورة من Base64
                     img_data = new_image.split(',')[1] if ',' in new_image else new_image
-
-                    # رفع الصورة مباشرة إلى Cloudinary
                     result = cloudinary.uploader.upload(
                         base64.b64decode(img_data),
                         public_id=f"profile_{employee_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                     )
-
-                    # تخزين الرابط المباشر في قاعدة البيانات
                     employee.profile_image = result['secure_url']
-
                 except Exception as e:
                     print(f"Error processing image: {e}")
 
             elif new_image.startswith('http'):
-                # إذا كان الرابط موجود مسبقًا، خزنه مباشرة
                 employee.profile_image = new_image
-        # تحديث بقية الحقول - خارج كتلة معالجة الصورة
+
+        # الحقول الأخرى
         employee.telegram_chatid = data.get('telegram_chatid', employee.telegram_chatid)
         employee.phone = data.get('phone', employee.phone)
         employee.position = data.get('position', employee.position)
         employee.role = data.get('role', employee.role)
-                # استخراج القيم الجديدة للدور والقسم
+
+        # التحقق من وجود مشرف آخر في نفس القسم
         new_role = data.get('role', employee.role)
         new_department_id = data.get('department_id', employee.department_id)
         employee.department_id = new_department_id
 
-        # التحقق من وجود مشرف آخر في نفس القسم
         if new_role == 'مشرف' or (employee.role == 'مشرف' and new_role != 'مشرف'):
-            # إذا كان الموظف يصبح مشرفًا أو يتحول من مشرف إلى موظف
             existing_supervisor = Employee.query.filter(
                 Employee.department_id == new_department_id,
                 Employee.role == 'مشرف',
-                Employee.id != employee_id  # استبعاد الموظف الحالي
+                Employee.id != employee_id
             ).first()
-            
             if existing_supervisor:
                 return jsonify({
                     'message': 'تم رفض العملية: لا يمكن وجود أكثر من مشرف في نفس القسم'
                 }), 400
+
         employee.bank_account = data.get('bank_account', employee.bank_account)
         employee.address = data.get('address', employee.address)
         employee.notes = data.get('notes', employee.notes)
@@ -2084,7 +2083,9 @@ def update_employee(employee_id):
             employee.work_end_time = time.fromisoformat(data['work_end_time'])
         if 'date_of_joining' in data:
             employee.date_of_joining = date.fromisoformat(data['date_of_joining'])
-        
+        if 'end_of_service_date' in data:
+            employee.end_of_service_date = date.fromisoformat(data['end_of_service_date'])
+
         # تحديث أو إنشاء بيانات الراتب
         salary_data = data.get('salary_components')
         if salary_data:
@@ -2104,24 +2105,18 @@ def update_employee(employee_id):
             salary_component.administrative_allowance = salary_data.get('administrative_allowance', salary_component.administrative_allowance)
             salary_component.administrative_deduction = salary_data.get('administrative_deduction', salary_component.administrative_deduction)
         
-        # تحديث الحقول الديناميكية
+        # تحديث الحقول الديناميكية (ممكن إضافتها لاحقًا)
         if 'allowances' in data:
-            pass  # حفظ البدلات
-        
+            pass
         if 'deductions' in data:
-            pass  # حفظ الخصومات
-        
+            pass
         if 'other_groups' in data:
             pass
+
         # الحفظ في قاعدة البيانات
         db.session.commit()
         db.session.refresh(employee, ['department'])
-        print(f"Employee {employee_id} updated successfully:")
-        print(f" - الاسم بالعربية: {employee.full_name_arabic}")
-        print(f" - البريد الإلكتروني: {employee.email}")
-        print(f" - القسم: {employee.department.dep_name if employee.department else 'غير محدد'}")
-        print(f" - الدور: {employee.role}")
-        print(f" - صورة الملف الشخصي: {employee.profile_image}")
+
         # تحديث بيانات الجلسة إذا كان المستخدم الحالي هو نفسه الذي تم تعديله
         if 'employee' in session and session['employee']['id'] == employee_id:
             session['employee'].update({
@@ -2142,6 +2137,7 @@ def update_employee(employee_id):
                 "work_start_time": employee.work_start_time.strftime('%H:%M:%S') if employee.work_start_time else None,
                 "work_end_time": employee.work_end_time.strftime('%H:%M:%S') if employee.work_end_time else None,
                 "date_of_joining": employee.date_of_joining.strftime('%Y-%m-%d') if employee.date_of_joining else None,
+                "end_of_service_date": employee.end_of_service_date.strftime('%Y-%m-%d') if employee.end_of_service_date else None,
                 "notes": employee.notes,
                 "profile_image": employee.profile_image,
                 "status": employee.status,
@@ -2150,7 +2146,11 @@ def update_employee(employee_id):
                 "is_weekly_day_off": employee.is_weekly_day_off,
                 "regular_leave_hours": employee.regular_leave_hours,
                 "sick_leave_hours": employee.sick_leave_hours,
-                "emergency_leave_hours": employee.emergency_leave_hours
+                "emergency_leave_hours": employee.emergency_leave_hours,
+                # ✅ الحقول الجديدة
+                "study_major": employee.study_major,
+                "governorate": employee.governorate,
+                "relative_phone": employee.relative_phone
             })
             session.modified = True
 
@@ -6441,5 +6441,6 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
