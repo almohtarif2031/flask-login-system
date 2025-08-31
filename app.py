@@ -49,6 +49,7 @@ cloudinary.config(
     api_key = '154189674494148',       # ضع هنا API Key
     api_secret = 'uCh0dqbPmwW0I2yw0q-DQNTckdI',  # ضع هنا API Secret
     secure = True
+)
 # تمكين CORS لدعم الطلبات من الـ frontend
 CORS(app, 
      supports_credentials=True,  # مهم لدعم الكوكيز
