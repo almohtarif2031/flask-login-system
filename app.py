@@ -1853,6 +1853,7 @@ def add_employee():
         traceback.print_exc()
         return jsonify({'message': 'حدث خطأ أثناء إضافة الموظف', 'error': str(e)}), 500
 # 1. جلب جميع الموظفين
+# 1. جلب جميع الموظفين
 @app.route('/api/employees', methods=['GET'])
 def get_employees():
     try:
@@ -1861,11 +1862,13 @@ def get_employees():
         
         for emp in employees:
             employee_data = {
+                # الحقول الأساسية
                 'id': emp.id,
                 'name': emp.full_name_arabic,  # يتطابق مع emp.name في الفرونت
                 'employee_id': emp.employee_number,  # يتطابق مع emp.employee_id في الفرونت
                 'department': emp.department.dep_name if emp.department else 'غير محدد',
                 'position': emp.position,
+                'position_english': emp.position_english,
                 'email': emp.email,
                 'phone': emp.phone,
                 'status': emp.status,
@@ -1873,18 +1876,41 @@ def get_employees():
                 'work_start_time': emp.work_start_time.strftime('%H:%M') if emp.work_start_time else None,
                 'work_end_time': emp.work_end_time.strftime('%H:%M') if emp.work_end_time else None,
                 'date_of_joining': emp.date_of_joining.strftime('%Y-%m-%d') if emp.date_of_joining else None,
+                'end_of_service_date': emp.end_of_service_date.strftime('%Y-%m-%d') if emp.end_of_service_date else None,
                 'weekly_day_off': emp.weekly_day_off,
                 'profile_image': emp.profile_image,
                 'telegram_chatid': emp.telegram_chatid,
                 'bank_account': emp.bank_account,
                 'address': emp.address,
                 'notes': emp.notes,
+
+                # الحالات والإجازات
                 'is_leave': emp.is_leave,
                 'is_vacation': emp.is_vacation,
                 'is_weekly_day_off': emp.is_weekly_day_off,
                 'regular_leave_hours': emp.regular_leave_hours,
                 'sick_leave_hours': emp.sick_leave_hours,
-                'emergency_leave_hours': emp.emergency_leave_hours
+                'emergency_leave_hours': emp.emergency_leave_hours,
+
+                # الحقول الجديدة
+                'study_major': emp.study_major,
+                'governorate': emp.governorate,
+                'relative_phone': emp.relative_phone,
+                'relative_relation': emp.relative_relation,
+                'date_of_birth': emp.date_of_birth.strftime('%Y-%m-%d') if emp.date_of_birth else None,
+                'national_id': emp.national_id,
+                'job_level': emp.job_level,
+                'promotion': emp.promotion,
+                'career_stages': emp.career_stages,
+                'employee_status': emp.employee_status,
+                'work_location': emp.work_location,
+                'work_nature': emp.work_nature,
+                'marital_status': emp.marital_status,
+                'nationality': emp.nationality,
+                'trainings': emp.trainings,
+                'external_privileges': emp.external_privileges,
+                'special_leave_record': emp.special_leave_record,
+                'drive_folder_link': emp.drive_folder_link
             }
             employees_list.append(employee_data)
         
@@ -1892,7 +1918,6 @@ def get_employees():
     
     except Exception as e:
         return jsonify({'error': f'فشل في جلب بيانات الموظفين: {str(e)}'}), 500
-
 
 @app.route('/api/employee/<int:employee_id>', methods=['GET'])
 def get_employee(employee_id):
@@ -6488,5 +6513,6 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
