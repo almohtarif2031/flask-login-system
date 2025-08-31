@@ -53,7 +53,7 @@ cloudinary.config(
 # تمكين CORS لدعم الطلبات من الـ frontend
 CORS(app, 
      supports_credentials=True,  # مهم لدعم الكوكيز
-     origins=["https://loginsystem-almohtarif.netlify.app/"],
+     origins=["https://loginsystem-almohtarif.netlify.app"],
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      expose_headers=["Content-Disposition"],
