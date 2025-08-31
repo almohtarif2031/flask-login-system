@@ -1901,27 +1901,27 @@ def get_employee(employee_id):
         employee = db.session.get(Employee, employee_id)
         if not employee:
             return jsonify({'message': 'Employee not found'}), 404
-                # جلب الحقول المخصصة للموظف
+
+        # جلب الحقول المخصصة للموظف
         custom_fields = EmployeeCustomField.query.filter_by(employee_id=employee_id).all()
-        
-        # تحويل البيانات إلى قاموس
         custom_fields_data = [{
             'id': field.id,
             'field_name': field.field_name,
             'field_value': field.field_value
         } for field in custom_fields]
+
         # جلب بيانات الراتب
         salary_component = SalaryComponent.query.filter_by(employee_id=employee_id).first()
-        # ✅ بناء رابط الصورة بشكل صحيح باستخدام request.host_url
+
+        # ✅ بناء رابط الصورة بشكل صحيح
         if employee.profile_image and not employee.profile_image.startswith('http'):
             image_url = f"{request.host_url.rstrip('/')}/static/uploads/{employee.profile_image}"
         else:
             image_url = employee.profile_image
-        print(f"Employee image path: {image_url}")
-        # جلب اسم القسم
+
         department = db.session.get(Department, employee.department_id)
-        emp = employee
-        # تجهيز بيانات الإرجاع
+
+        # تجهيز بيانات الإرجاع (محدث مع الحقول الجديدة)
         employee_data = {
             'id': employee.id,
             'full_name_arabic': employee.full_name_arabic,
@@ -1932,9 +1932,10 @@ def get_employee(employee_id):
             'profile_image': image_url,
             'telegram_chatid': employee.telegram_chatid,
             'phone': employee.phone,
-            'department': emp.department.dep_name if department else None,
+            'department': department.dep_name if department else None,
             'department_id': employee.department_id,
             'position': employee.position,
+            'position_english': employee.position_english,
             'role': employee.role,
             'bank_account': employee.bank_account,
             'address': employee.address,
@@ -1949,12 +1950,34 @@ def get_employee(employee_id):
             'regular_leave_hours': employee.regular_leave_hours,
             'sick_leave_hours': employee.sick_leave_hours,
             'emergency_leave_hours': employee.emergency_leave_hours,
+
+            # ✅ الحقول الجديدة
+            'study_major': employee.study_major,
+            'governorate': employee.governorate,
+            'relative_phone': employee.relative_phone,
+            'relative_relation': employee.relative_relation,
+            'date_of_birth': str(employee.date_of_birth) if employee.date_of_birth else None,
+            'national_id': employee.national_id,
+            'job_level': employee.job_level,
+            'promotion': employee.promotion,
+            'career_stages': employee.career_stages,
+            'employee_status': employee.employee_status,
+            'work_location': employee.work_location,
+            'work_nature': employee.work_nature,
+            'marital_status': employee.marital_status,
+            'nationality': employee.nationality,
+            'trainings': employee.trainings,
+            'external_privileges': employee.external_privileges,
+            'special_leave_record': employee.special_leave_record,
+            'drive_folder_link': employee.drive_folder_link,
+
+            # الحقول المخصصة والراتب
             'custom_fields': custom_fields_data,
             'salary_components': None,
             'allowances': {},
             'deductions': {}
         }
-        
+
         # إضافة بيانات الراتب إذا وجدت
         if salary_component:
             employee_data['salary_components'] = {
@@ -1968,24 +1991,20 @@ def get_employee(employee_id):
                 'administrative_allowance': salary_component.administrative_allowance,
                 'administrative_deduction': salary_component.administrative_deduction
             }
-        
-        # إضافة الحقول الديناميكية (البدلات، الخصومات، المجموعات)
-        # يمكنك استبدال هذا الجزء بجلب البيانات الفعلية من قاعدة البيانات
-        employee_data['allowances'] = {
-            'بدل انترنت': salary_component.internet_allowance if salary_component else 0,
-            'بدل نقل': salary_component.transport_allowance if salary_component else 0,
-            # ... إضافة المزيد حسب الحاجة
-        }
-        
-        employee_data['deductions'] = {
-            'خصم إداري': salary_component.administrative_deduction if salary_component else 0,
-            # ... إضافة المزيد حسب الحاجة
-        }
-        
+
+            # بدلات وخصومات
+            employee_data['allowances'] = {
+                'بدل انترنت': salary_component.internet_allowance or 0,
+                'بدل نقل': salary_component.transport_allowance or 0,
+            }
+            employee_data['deductions'] = {
+                'خصم إداري': salary_component.administrative_deduction or 0,
+            }
+
         return jsonify(employee_data), 200
-    
+
     except Exception as e:
-        print(f"Error occurred: {e}")  # تطبع الخطأ في الطرفية
+        print(f"Error occurred: {e}")
         return jsonify({'message': str(e)}), 500
 
 @app.route('/api/employee/<int:employee_id>', methods=['PUT'])
@@ -6422,4 +6441,5 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
