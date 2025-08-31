@@ -2111,16 +2111,30 @@ def update_employee(employee_id):
             if not salary_component:
                 salary_component = SalaryComponent(employee_id=employee_id)
                 db.session.add(salary_component)
-            
-            salary_component.base_salary = salary_data.get('base_salary', salary_component.base_salary)
-            salary_component.hour_salary = salary_data.get('hour_salary', salary_component.hour_salary)
-            salary_component.overtime_rate = salary_data.get('overtime_rate', salary_component.overtime_rate)
-            salary_component.holiday_overtime_rate = salary_data.get('holiday_overtime_rate', salary_component.holiday_overtime_rate)
-            salary_component.internet_allowance = salary_data.get('internet_allowance', salary_component.internet_allowance)
-            salary_component.transport_allowance = salary_data.get('transport_allowance', salary_component.transport_allowance)
-            salary_component.depreciation_allowance = salary_data.get('depreciation_allowance', salary_component.depreciation_allowance)
-            salary_component.administrative_allowance = salary_data.get('administrative_allowance', salary_component.administrative_allowance)
-            salary_component.administrative_deduction = salary_data.get('administrative_deduction', salary_component.administrative_deduction)
+
+            # الراتب الأساسي
+            base_salary = salary_data.get('base_salary', salary_component.base_salary or 0.0)
+            salary_component.base_salary = float(base_salary)
+
+            # الأجر بالساعة: إذا انبعت Null نحسبه أو نخليه صفر
+            hour_salary = salary_data.get('hour_salary')
+            if hour_salary is None:
+                try:
+                    salary_component.hour_salary = float(base_salary) / (8 * 26)  # مثال: تقسيم على 8 ساعات * 26 يوم
+                except ZeroDivisionError:
+                    salary_component.hour_salary = 0.0
+            else:
+                salary_component.hour_salary = float(hour_salary)
+
+            # بقية الحقول
+            salary_component.overtime_rate = salary_data.get('overtime_rate', salary_component.overtime_rate or 0.0)
+            salary_component.holiday_overtime_rate = salary_data.get('holiday_overtime_rate', salary_component.holiday_overtime_rate or 0.0)
+            salary_component.internet_allowance = salary_data.get('internet_allowance', salary_component.internet_allowance or 0.0)
+            salary_component.transport_allowance = salary_data.get('transport_allowance', salary_component.transport_allowance or 0.0)
+            salary_component.depreciation_allowance = salary_data.get('depreciation_allowance', salary_component.depreciation_allowance or 0.0)
+            salary_component.administrative_allowance = salary_data.get('administrative_allowance', salary_component.administrative_allowance or 0.0)
+            salary_component.administrative_deduction = salary_data.get('administrative_deduction', salary_component.administrative_deduction or 0.0)
+
         
         # تحديث الحقول الديناميكية (ممكن إضافتها لاحقًا)
         if 'allowances' in data:
@@ -6474,4 +6488,5 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
