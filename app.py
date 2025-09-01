@@ -1861,11 +1861,18 @@ def get_employees():
         employees_list = []
         
         for emp in employees:
+            # جلب الحقول المخصصة لكل موظف
+            custom_fields = EmployeeCustomField.query.filter_by(employee_id=emp.id).all()
+            custom_fields_data = [
+                {'id': f.id, 'field_name': f.field_name, 'field_value': f.field_value}
+                for f in custom_fields
+            ]
+            
             employee_data = {
                 # الحقول الأساسية
                 'id': emp.id,
-                'name': emp.full_name_arabic,  # يتطابق مع emp.name في الفرونت
-                'employee_id': emp.employee_number,  # يتطابق مع emp.employee_id في الفرونت
+                'name': emp.full_name_arabic,
+                'employee_id': emp.employee_number,
                 'department': emp.department.dep_name if emp.department else 'غير محدد',
                 'position': emp.position,
                 'position_english': emp.position_english,
@@ -1910,7 +1917,10 @@ def get_employees():
                 'trainings': emp.trainings,
                 'external_privileges': emp.external_privileges,
                 'special_leave_record': emp.special_leave_record,
-                'drive_folder_link': emp.drive_folder_link
+                'drive_folder_link': emp.drive_folder_link,
+                
+                # الحقول المخصصة
+                'custom_fields': custom_fields_data
             }
             employees_list.append(employee_data)
         
@@ -1918,7 +1928,6 @@ def get_employees():
     
     except Exception as e:
         return jsonify({'error': f'فشل في جلب بيانات الموظفين: {str(e)}'}), 500
-
 @app.route('/api/employee/<int:employee_id>', methods=['GET'])
 def get_employee(employee_id):
     try:
@@ -6532,6 +6541,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
