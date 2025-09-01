@@ -4893,7 +4893,26 @@ def get_current_employee():
         'custom_fields': custom_fields_data,
         'salary_components': None,
         'allowances': {},
-        'deductions': {}
+        'deductions': {},
+        # الحقول الجديدة المضافة
+        'study_major': employee.study_major,
+        'governorate': employee.governorate,
+        'relative_phone': employee.relative_phone,
+        'relative_relation': employee.relative_relation,
+        'date_of_birth': str(employee.date_of_birth) if employee.date_of_birth else None,
+        'national_id': employee.national_id,
+        'job_level': employee.job_level,
+        'promotion': employee.promotion,
+        'career_stages': employee.career_stages,
+        'employee_status': employee.employee_status,
+        'work_location': employee.work_location,
+        'work_nature': employee.work_nature,
+        'marital_status': employee.marital_status,
+        'nationality': employee.nationality,
+        'trainings': employee.trainings,
+        'external_privileges': employee.external_privileges,
+        'special_leave_record': employee.special_leave_record,
+        'drive_folder_link': employee.drive_folder_link
     }
 
     if salary_component:
@@ -6513,6 +6532,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
