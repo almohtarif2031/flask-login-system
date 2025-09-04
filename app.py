@@ -4946,7 +4946,31 @@ def get_current_employee():
         }
 
     return jsonify(employee_data), 200
+
 # Routes for Additional Attendance Records (Overtime Requests)
+# Routes for Additional Attendance Records (Overtime Requests)
+@app.route('/api/overtime-requests', methods=['GET'])
+def get_all_overtime_requests():
+    if 'employee' not in session:
+        return jsonify({'success': False, 'message': 'يجب تسجيل الدخول أولاً'}), 401
+
+    employee_id = session['employee']['id']
+    overtime_requests = AdditionalAttendanceRecord.query.filter_by(employee_id=employee_id).all()
+
+    requests_data = []
+    for req in overtime_requests:
+        requests_data.append({
+            'id': req.id,
+            'date': req.date.strftime('%Y-%m-%d'),
+            'start_time': req.start_time.strftime('%H:%M') if req.start_time else None,
+            'end_time': req.end_time.strftime('%H:%M') if req.end_time else None,
+            'hours_requested': round(req.add_attendance_minutes / 60, 2),
+            'note': req.notes,
+            'status': req.status,
+            'timestamp': req.date.strftime('%Y-%m-%d')
+        })
+
+    return jsonify({'success': True, 'requests': requests_data}), 200
 @app.route('/api/overtime-requests', methods=['POST'])
 def create_overtime_request():
     """إنشاء طلب دوام إضافي جديد"""
@@ -6541,6 +6565,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
