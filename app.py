@@ -5886,7 +5886,8 @@ def get_supervisor_overtime_requests():
         AdditionalAttendanceRecord.add_attendance_minutes,
         AdditionalAttendanceRecord.status,
         AdditionalAttendanceRecord.start_time,  # أضفنا
-        AdditionalAttendanceRecord.end_time     # أضفنا
+        AdditionalAttendanceRecord.end_time,    # أضفنا
+        AdditionalAttendanceRecord.notes
     ).join(Employee, Employee.id == AdditionalAttendanceRecord.employee_id)\
      .filter(
         Employee.department_id == supervisor.department_id,
@@ -5901,7 +5902,8 @@ def get_supervisor_overtime_requests():
         'hours': round(r.add_attendance_minutes / 60, 2),
         'status': r.status,
         'start_time': r.start_time.strftime('%H:%M') if r.start_time else None,  # تحويل الوقت إلى سلسلة
-        'end_time': r.end_time.strftime('%H:%M') if r.end_time else None
+        'end_time': r.end_time.strftime('%H:%M') if r.end_time else None,
+        'notes': r.notes
     } for r in overtime_requests]
     
     return jsonify({"requests": result}), 200
@@ -6565,6 +6567,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
