@@ -6495,16 +6495,40 @@ def home():
             "department_id": employee.department_id,
             "department_name": employee.department.dep_name_english if employee.department else None,
             "position": employee.position,
+            "position_english": employee.position_english,
             "role": employee.role,
+            "status": employee.status,
             "bank_account": employee.bank_account,
             "address": employee.address,
             "weekly_day_off": employee.weekly_day_off,
             "work_start_time": employee.work_start_time.strftime('%H:%M:%S') if employee.work_start_time else None,
             "work_end_time": employee.work_end_time.strftime('%H:%M:%S') if employee.work_end_time else None,
             "date_of_joining": employee.date_of_joining.strftime('%Y-%m-%d') if employee.date_of_joining else None,
+            "end_of_service_date": employee.end_of_service_date.strftime('%Y-%m-%d') if employee.end_of_service_date else None,
             "notes": employee.notes,
             "profile_image": employee.profile_image,
-            "status": employee.status,
+
+            # ✅ الحقول الجديدة
+            "study_major": employee.study_major,
+            "governorate": employee.governorate,
+            "relative_phone": employee.relative_phone,
+            "relative_relation": employee.relative_relation,
+            "date_of_birth": employee.date_of_birth.strftime('%Y-%m-%d') if employee.date_of_birth else None,
+            "national_id": employee.national_id,
+            "job_level": employee.job_level,
+            "promotion": employee.promotion,
+            "career_stages": employee.career_stages,
+            "employee_status": employee.employee_status,
+            "work_location": employee.work_location,
+            "work_nature": employee.work_nature,
+            "marital_status": employee.marital_status,
+            "nationality": employee.nationality,
+            "trainings": employee.trainings,
+            "external_privileges": employee.external_privileges,
+            "special_leave_record": employee.special_leave_record,
+            "drive_folder_link": employee.drive_folder_link,
+
+            # ✅ الإجازات
             "is_leave": employee.is_leave,
             "is_vacation": employee.is_vacation,
             "is_weekly_day_off": employee.is_weekly_day_off,
@@ -6521,19 +6545,20 @@ def login():
     password = data.get('password')
 
     employee = Employee.query.filter_by(email=email).first()
-    if employee and employee.password == password:
+    if employee and employee.password == password:  # ⚠️ لاحقاً يفضل استخدام hashing مع werkzeug.security
         session['employee'] = {
             "id": employee.id,
             "full_name_arabic": employee.full_name_arabic,
             "full_name_english": employee.full_name_english,
             "employee_number": employee.employee_number,
             "email": employee.email,
-            "password":employee.password,
+            "password": employee.password,  # ⚠️ يفضل ما ترجعها بالـ session لأمان أكثر
             "telegram_chatid": employee.telegram_chatid,
             "phone": employee.phone,
             "department_id": employee.department_id,
-            'department_name': employee.department.dep_name,  # ✅ اسم القسم
+            "department_name": employee.department.dep_name if employee.department else None,
             "position": employee.position,
+            "position_english": employee.position_english,
             "role": employee.role,
             "bank_account": employee.bank_account,
             "address": employee.address,
@@ -6541,9 +6566,32 @@ def login():
             "work_start_time": employee.work_start_time.strftime('%H:%M:%S') if employee.work_start_time else None,
             "work_end_time": employee.work_end_time.strftime('%H:%M:%S') if employee.work_end_time else None,
             "date_of_joining": employee.date_of_joining.strftime('%Y-%m-%d') if employee.date_of_joining else None,
+            "end_of_service_date": employee.end_of_service_date.strftime('%Y-%m-%d') if employee.end_of_service_date else None,
             "notes": employee.notes,
             "profile_image": employee.profile_image,
             "status": employee.status,
+
+            # ✅ الحقول الجديدة
+            "study_major": employee.study_major,
+            "governorate": employee.governorate,
+            "relative_phone": employee.relative_phone,
+            "relative_relation": employee.relative_relation,
+            "date_of_birth": employee.date_of_birth.strftime('%Y-%m-%d') if employee.date_of_birth else None,
+            "national_id": employee.national_id,
+            "job_level": employee.job_level,
+            "promotion": employee.promotion,
+            "career_stages": employee.career_stages,
+            "employee_status": employee.employee_status,
+            "work_location": employee.work_location,
+            "work_nature": employee.work_nature,
+            "marital_status": employee.marital_status,
+            "nationality": employee.nationality,
+            "trainings": employee.trainings,
+            "external_privileges": employee.external_privileges,
+            "special_leave_record": employee.special_leave_record,
+            "drive_folder_link": employee.drive_folder_link,
+
+            # ✅ الإجازات
             "is_leave": employee.is_leave,
             "is_vacation": employee.is_vacation,
             "is_weekly_day_off": employee.is_weekly_day_off,
@@ -6567,6 +6615,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
