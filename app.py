@@ -3482,7 +3482,7 @@ def export_all_employees_to_excel():
                         'ساعات إضافية أيام عادية': round(regular_days_additional / 60, 2),
                         'ساعات إضافية أيام عطل': round(holidays_additional / 60, 2),
                         'إجازات عادية (ساعة)': leave_hours_taken["normal"],
-                        'إجازات طارئة (ساعة)': leave_hours_taken["emergency"],
+                        'إجازات خاصة (ساعة)': leave_hours_taken["emergency"],
                         'إجازات مرضية (ساعة)': leave_hours_taken["sick"],
                         'الراتب الأساسي': base_salary,
                         'أجر الساعة': hour_salary,
@@ -3599,7 +3599,7 @@ def export_all_employees_to_excel():
                 ('Q', 25),  # ساعات إضافية أيام عادية
                 ('R', 25),  # ساعات إضافية أيام عطل
                 ('S', 20),  # إجازات عادية (ساعة)
-                ('T', 20),  # إجازات طارئة (ساعة)
+                ('T', 20),  # إجازات خاصة (ساعة)
                 ('U', 20),  # إجازات مرضية (ساعة)
                 ('V', 18),  # الراتب الأساسي
                 ('W', 15),  # أجر الساعة
@@ -6698,6 +6698,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
