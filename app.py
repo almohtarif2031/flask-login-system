@@ -695,6 +695,10 @@ def get_admin_overtime_requests():
         
         requests_data = []
         for record in overtime_requests:
+            department_name = record.employee.department.dep_name if (
+                record.employee and 
+                record.employee.department
+            ) else 'غير محدد'
             requests_data.append({
                 'id': record.id,
                 'date': record.date.isoformat() if record.date else None,
@@ -708,7 +712,7 @@ def get_admin_overtime_requests():
                 'add_attendance_minutes': record.add_attendance_minutes,
                 'status': record.status,
                 'notes': record.notes,
-                'department': record.employee.department if record.employee else 'غير محدد'
+                'department': department_name
             })
         
         return jsonify(requests_data), 200
@@ -6694,6 +6698,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
