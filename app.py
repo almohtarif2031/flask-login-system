@@ -687,7 +687,86 @@ def update_leave_request(request_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'خطأ في تحديث حالة الطلب: {str(e)}'}), 500
+# جلب جميع طلبات العمل الإضافي
+@app.route('/api/admin-overtime-requests', methods=['GET'])
+def get_overtime_requests():
+    try:
+        overtime_requests = AdditionalAttendanceRecord.query.all()
+        
+        requests_data = []
+        for record in overtime_requests:
+            requests_data.append({
+                'id': record.id,
+                'date': record.date.isoformat() if record.date else None,
+                'employee_id': record.employee_id,
+                'employee_name': record.name,
+                'arname': record.arname,
+                'role': record.role,
+                'is_holiday': record.is_holiday,
+                'start_time': record.start_time.strftime('%H:%M') if record.start_time else None,
+                'end_time': record.end_time.strftime('%H:%M') if record.end_time else None,
+                'add_attendance_minutes': record.add_attendance_minutes,
+                'status': record.status,
+                'notes': record.notes,
+                'department': record.employee.department if record.employee else 'غير محدد'
+            })
+        
+        return jsonify(requests_data), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'خطأ في جلب طلبات العمل الإضافي: {str(e)}'}), 500
 
+# تحديث حالة طلب العمل الإضافي
+@app.route('/api/admin-overtime-requests/<int:request_id>', methods=['PUT'])
+def update_overtime_request(request_id):
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        if not new_status:
+            return jsonify({'error': 'حالة الطلب مطلوبة'}), 400
+        
+        # التحقق من صحة الحالة
+        valid_statuses = ['pending', 'approved', 'rejected']
+        if new_status not in valid_statuses:
+            return jsonify({'error': 'حالة الطلب غير صحيحة'}), 400
+        
+        overtime_request = AdditionalAttendanceRecord.query.get(request_id)
+        
+        if not overtime_request:
+            return jsonify({'error': 'طلب العمل الإضافي غير موجود'}), 404
+        
+        overtime_request.status = new_status
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'تم تحديث حالة طلب العمل الإضافي بنجاح',
+            'new_status': new_status
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'خطأ في تحديث حالة الطلب: {str(e)}'}), 500
+
+# حذف طلب العمل الإضافي
+@app.route('/api/admin-overtime-requests/<int:request_id>', methods=['DELETE'])
+def delete_overtime_request(request_id):
+    try:
+        # البحث عن الطلب
+        overtime_request = db.session.get(AdditionalAttendanceRecord, request_id)
+        
+        if not overtime_request:
+            return jsonify({'error': 'طلب العمل الإضافي غير موجود'}), 404
+        
+        # حذف الطلب من قاعدة البيانات
+        db.session.delete(overtime_request)
+        db.session.commit()
+        
+        return jsonify({'message': 'تم حذف طلب العمل الإضافي بنجاح'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'خطأ في حذف طلب العمل الإضافي: {str(e)}'}), 500
 # تحديث حالة طلب التعويض
 @app.route('/api/compensation-requests/<int:request_id>', methods=['PUT'])
 def update_compensation_request(request_id):
@@ -6615,6 +6694,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
