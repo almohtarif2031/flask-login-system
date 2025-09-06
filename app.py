@@ -689,7 +689,7 @@ def update_leave_request(request_id):
         return jsonify({'error': f'خطأ في تحديث حالة الطلب: {str(e)}'}), 500
 # جلب جميع طلبات العمل الإضافي
 @app.route('/api/admin-overtime-requests', methods=['GET'])
-def get_overtime_requests():
+def get_admin_overtime_requests():
     try:
         overtime_requests = AdditionalAttendanceRecord.query.all()
         
@@ -718,7 +718,7 @@ def get_overtime_requests():
 
 # تحديث حالة طلب العمل الإضافي
 @app.route('/api/admin-overtime-requests/<int:request_id>', methods=['PUT'])
-def update_overtime_request(request_id):
+def update_admin_overtime_request(request_id):
     try:
         data = request.get_json()
         new_status = data.get('status')
@@ -750,7 +750,7 @@ def update_overtime_request(request_id):
 
 # حذف طلب العمل الإضافي
 @app.route('/api/admin-overtime-requests/<int:request_id>', methods=['DELETE'])
-def delete_overtime_request(request_id):
+def delete_admin_overtime_request(request_id):
     try:
         # البحث عن الطلب
         overtime_request = db.session.get(AdditionalAttendanceRecord, request_id)
@@ -6694,6 +6694,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
