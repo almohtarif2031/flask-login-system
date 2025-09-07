@@ -661,12 +661,12 @@ def mark_notifications_as_read():
             'success': False,
             'message': f'خطأ في تحديث الإشعارات: {str(e)}'
         }), 500
-# تحديث حالة طلب الإجازة
 @app.route('/api/leave-requests/<int:request_id>', methods=['PUT'])
 def update_leave_request(request_id):
     try:
         data = request.get_json()
         new_status = data.get('status')
+        new_note = data.get('note')  # الحصول على الملاحظات الجديدة
         
         if not new_status:
             return jsonify({'error': 'حالة الطلب مطلوبة'}), 400
@@ -677,16 +677,19 @@ def update_leave_request(request_id):
             return jsonify({'error': 'طلب الإجازة غير موجود'}), 404
         
         leave_request.status = new_status
+        if new_note is not None:  # إذا تم إرسال ملاحظات، نقوم بتحديثها
+            leave_request.note = new_note
         db.session.commit()
         
         return jsonify({
-            'message': 'تم تحديث حالة طلب الإجازة بنجاح',
-            'new_status': new_status
+            'message': 'تم تحديث طلب الإجازة بنجاح',
+            'new_status': new_status,
+            'new_note': new_note
         }), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'خطأ في تحديث حالة الطلب: {str(e)}'}), 500
+        return jsonify({'error': f'خطأ في تحديث الطلب: {str(e)}'}), 500
 # جلب جميع طلبات العمل الإضافي
 @app.route('/api/admin-overtime-requests', methods=['GET'])
 def get_admin_overtime_requests():
@@ -6780,6 +6783,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
