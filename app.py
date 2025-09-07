@@ -4246,7 +4246,7 @@ def handle_attendance():
 
             start_time = employee.work_start_time
             actual_start = damascus_tz.localize(datetime.combine(today, start_time))
-            delay_start_time = actual_start + timedelta(minutes=31)
+            delay_start_time = actual_start + timedelta(minutes=16)
             
             if current_time > delay_start_time:
                 delay_seconds = (current_time - delay_start_time).total_seconds()
@@ -4268,7 +4268,7 @@ def handle_attendance():
                 # إرسال إشعار للمشرف
                 supervisor_employee = supervisor.employee
                 if supervisor_employee and supervisor_employee.telegram_chatid:
-                    allowed_start_time = actual_start + timedelta(minutes=31)
+                    allowed_start_time = actual_start + timedelta(minutes=16)
                     message = (
                         f"🔔 <b>إشعار تأخير موظف</b>\n\n"
                         f"• الموظف: <b>{employee.full_name_arabic}</b>\n"
@@ -6783,6 +6783,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
