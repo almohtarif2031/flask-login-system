@@ -4814,10 +4814,29 @@ def create_leave_request():
                         send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
                     except Exception as telegram_error:
                         print(f"فشل إرسال التلغرام: {telegram_error}")
+        else:
+            # إذا كان الموظف مشرفاً، أرسل إشعاراً خاصاً له
+            notification = Notification(
+                recipient_id=employee_id,
+                message=f"تم قبول طلب إجازتك تلقائياً. {medical_message if data['classification'] == 'sick' else ''}"
+            )
+            db.session.add(notification)
         
         # إرسال إشعار للموظف نفسه إذا كانت الإجازة مرضية
         if data['classification'] == 'sick' and employee.telegram_chatid:
-            employee_message = f"""
+            # رسالة خاصة للمشرفين
+            if is_supervisor:
+                employee_message = f"""
+✅ <b>تم قبول طلب إجازتك المرضية تلقائياً</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• تم قبول طلب إجازتك المرضية بنجاح
+• {medical_message}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+            else:
+                employee_message = f"""
 ✅ <b>تم تقديم طلب إجازة مرضية</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • تم تقديم طلب إجازتك المرضية بنجاح
@@ -4825,7 +4844,7 @@ def create_leave_request():
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
-            """
+                """
             try:
                 send_telegram_message(employee.telegram_chatid, employee_message)
             except Exception as telegram_error:
@@ -4833,14 +4852,17 @@ def create_leave_request():
         
         db.session.commit()
         
+        # رسالة الرد النهائية
         if is_supervisor:
-            message = "تم إنشاء وقبول طلب الإجازة تلقائيًا"
+            if data['classification'] == 'sick':
+                message = "تم قبول طلب إجازتك المرضية تلقائياً. " + medical_message
+            else:
+                message = "تم إنشاء وقبول طلب الإجازة تلقائيًا"
         else:
-            message = "تم إرسال طلب الإجازة بنجاح"
-            
-        # إضافة الرسالة الطبية للرد إذا كانت الإجازة مرضية
-        if data['classification'] == 'sick':
-            message += ". " + medical_message
+            if data['classification'] == 'sick':
+                message = "تم إرسال طلب الإجازة المرضية بنجاح. " + medical_message
+            else:
+                message = "تم إرسال طلب الإجازة بنجاح"
             
         return jsonify({
             "success": True,
@@ -6757,6 +6779,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
