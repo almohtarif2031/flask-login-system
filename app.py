@@ -4210,10 +4210,10 @@ def handle_attendance():
             if fallback_supervisor:
                 supervisor = fallback_supervisor
                 # تسجيل خطأ في السجلات
-                app.logger.error(f"لم يتم العثور على مشرف للقسم {employee.department_id}، تم استخدام مشرف بديل: {supervisor.supervisor_ID}")
+                print(f"لم يتم العثور على مشرف للقسم {employee.department_id}، تم استخدام مشرف بديل: {supervisor.supervisor_ID}")
             else:
                 # في حالة عدم وجود أي مشرف في النظام
-                app.logger.critical("لا يوجد أي مشرفين في النظام!")
+                print("لا يوجد أي مشرفين في النظام!")
                 return jsonify({
                     'success': False,
                     'message': 'حدث خطأ في النظام'
@@ -4328,7 +4328,7 @@ def handle_attendance():
             
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"حدث خطأ في تسجيل الحضور: {str(e)}")
+        print(f"حدث خطأ في تسجيل الحضور: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'حدث خطأ: {str(e)}'
@@ -6757,6 +6757,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
