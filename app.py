@@ -2672,7 +2672,7 @@ def employee_statistics():
                     
                     if actual_start > expected_start:
                         delay_minutes = int((actual_start - expected_start).total_seconds() / 60)
-                        if delay_minutes > 5:
+                        if delay_minutes > 15:
                             total_delay_minutes += delay_minutes
                             delay_count += 1
                             print(f"   ⏰ Delay on {record.work_date}: {delay_minutes} minutes")
@@ -3797,13 +3797,13 @@ def get_dashboard_data():
                     if checkin_minutes > work_end_minutes:
                         is_delayed = False  # حضور عادي، ليس متأخر
                     else:
-                        # إذا كان الحضور ضمن الدوام وتأخر 30 دقيقة أو أكثر
-                        is_delayed = delay_minutes > 30
+                        # إذا كان الحضور ضمن الدوام وتأخر 15 دقيقة أو أكثر
+                        is_delayed = delay_minutes > 15
                     
                     # هل آخر دخول ضمن أوقات الدوام؟
                     is_checkin_during_work = work_start_minutes <= checkin_minutes <= work_end_minutes
                     
-                    print(f"تأخير: {delay_minutes} دقيقة - متأخر 30+ دقيقة: {is_delayed}")
+                    print(f"تأخير: {delay_minutes} دقيقة - متأخر 15+ دقيقة: {is_delayed}")
                     print(f"دخول ضمن أوقات الدوام: {is_checkin_during_work}")
                     
                     # معالجة الحالات
@@ -5858,7 +5858,7 @@ def get_supervisor_dashboard_data():
                     current_minutes = time_to_minutes(current_time)
                     
                     delay_minutes = checkin_minutes - work_start_minutes
-                    is_delayed = delay_minutes > 30 and checkin_minutes <= work_end_minutes
+                    is_delayed = delay_minutes > 15 and checkin_minutes <= work_end_minutes
                     
                     # هل آخر دخول ضمن أوقات الدوام؟
                     is_checkin_during_work = work_start_minutes <= checkin_minutes <= work_end_minutes
@@ -6783,6 +6783,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
