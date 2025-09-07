@@ -3294,7 +3294,7 @@ def export_all_employees_to_excel():
                             
                             if actual_start > expected_start:
                                 delay_minutes = int((actual_start - expected_start).total_seconds() / 60)
-                                if delay_minutes > 5:
+                                if delay_minutes > 15:
                                     total_delay_minutes += delay_minutes
                                     delay_count += 1
                         
@@ -6783,6 +6783,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
