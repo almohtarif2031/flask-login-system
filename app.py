@@ -4268,7 +4268,7 @@ def handle_attendance():
                     message = (
                         f"🔔 <b>إشعار تأخير موظف</b>\n\n"
                         f"• الموظف: <b>{employee.full_name_arabic}</b>\n"
-                        f"• القسم: <b>{department.dep_name_arabic if department else 'غير معروف'}</b>\n"
+                        f"• القسم: <b>{department.dep_name if department else 'غير معروف'}</b>\n"
                         f"• مدة التأخير: <b>{delay_minutes} دقيقة</b>\n"
                         f"• وقت الدخول الفعلي: <b>{current_time.strftime('%Y-%m-%d %I:%M %p')}</b>\n"
                         f"• فترة التأخير: من <b>{allowed_start_time.strftime('%I:%M %p')}</b> "
@@ -4800,7 +4800,7 @@ def create_leave_request():
 🔔 <b>طلب إجازة جديد</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • الموظف: {employee.full_name_arabic}
-• القسم: {employee.department.dep_name_arabic}
+• القسم: {employee.department.dep_name}
 • نوع الإجازة: {data['type']}
 • التصنيف: {data['classification']}
 • المدة: {hours_requested} ساعة
@@ -6757,6 +6757,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
