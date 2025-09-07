@@ -1632,7 +1632,8 @@ def get_leave_requests():
             "classification": req.classification,
             "status": req.status,
             "start_date": req.start_date.strftime('%Y-%m-%d'),
-            "type": req.type
+            "type": req.type,
+            "note": req.note
         }
         # إرسال end_date بنفس قيمة start_date إذا كانت الإجازة يومية أو ساعية
         if req.type in ['daily', 'hourly']:
@@ -6779,6 +6780,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
