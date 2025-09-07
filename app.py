@@ -4813,7 +4813,7 @@ def create_leave_request():
                     try:
                         send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
                     except Exception as telegram_error:
-                        logger.error(f"فشل إرسال التلغرام: {telegram_error}")
+                        print(f"فشل إرسال التلغرام: {telegram_error}")
         
         # إرسال إشعار للموظف نفسه إذا كانت الإجازة مرضية
         if data['classification'] == 'sick' and employee.telegram_chatid:
@@ -4829,7 +4829,7 @@ def create_leave_request():
             try:
                 send_telegram_message(employee.telegram_chatid, employee_message)
             except Exception as telegram_error:
-                logger.error(f"فشل إرسال التلغرام للموظف: {telegram_error}")
+                print(f"فشل إرسال التلغرام للموظف: {telegram_error}")
         
         db.session.commit()
         
@@ -4852,7 +4852,7 @@ def create_leave_request():
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error in create_leave_request: {str(e)}")
+        print(f"Error in create_leave_request: {str(e)}")
         return jsonify({
             "success": False,
             "message": "حدث خطأ أثناء حفظ الطلب",
@@ -6757,6 +6757,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
