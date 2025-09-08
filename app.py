@@ -4107,8 +4107,8 @@ def perform_auto_checkout(employee_id):
 إذا رغبت في تعويض وقت الدوام أو تسجيل دوام إضافي، يرجى:
 1. الانتقال إلى التطبيق الآن
 2. استخدام الأزرار المخصصة:
-   • زر <b>تعويض الدوام</b> لتعويض ساعات الاجازة
-   • زر <b>دوام إضافي</b> لتسجيل ساعات إضافية
+   • زر <b>طلب تعويض</b> لطلب من المشرف تعويض ساعات الاجازة
+   • زر <b>طلب إضافي</b> لطلب من المشرف ساعات إضافية
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {current_time.strftime('%Y-%m-%d %I:%M %p')}
@@ -6379,28 +6379,23 @@ def handle_supervisor_request(request_type, request_id, action):
     if not employee:
         return jsonify({"message": "الموظف صاحب الطلب غير موجود"}), 404
     
-    # التحقق من أن الموظف في قسم المشرف (بدلاً من supervisor_id)
+    # التحقق من أن الموظف في قسم المشرف
     if employee.department_id != supervisor.department_id:
         return jsonify({"message": "غير مصرح بتعديل هذا الطلب"}), 403
     
     # تحديث حالة الطلب بناءً على النوع
     if request_type == 'delay':
-        # حالة خاصة لطلبات التأخير
         if action == 'approve':
             request_record.status = 'Justified'
         elif action == 'reject':
             request_record.status = 'Unjustified'
     else:
-        # الحالات الأخرى (leave, overtime, compensation)
         request_record.status = 'approved' if action == 'approve' else 'rejected'
     
     # إذا كان طلب عمل إضافي تمت الموافقة عليه
     if request_type == 'overtime' and action == 'approve':
-        # إضافة الساعات الإضافية لرصيد الموظف
-        # تحويل الدقائق إلى ساعات وإضافتها للرصيد
         overtime_hours = request_record.add_attendance_minutes / 60
-        # هنا يمكنك تحديث رصيد الموظف حسب نظامك
-        # employee.overtime_balance += overtime_hours
+        # employee.overtime_balance += overtime_hours  # فك التعليق إذا كنت تريد تحديث الرصيد
     
     db.session.commit()
     
@@ -6411,6 +6406,30 @@ def handle_supervisor_request(request_type, request_id, action):
     )
     db.session.add(notification)
     db.session.commit()
+
+    # إرسال الطلب المعتمد إلى مجموعة التلغرام كأرشيف
+    if action == 'approve':
+        try:
+            # إعداد رسالة الأرشيف
+            archive_message = f"""
+📋 <b>طلب معتمد - أرشيف</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• نوع الطلب: {request_type}
+• الموظف: {employee.full_name_arabic}
+• القسم: {employee.department.dep_name}
+• المشرف: {supervisor.full_name_arabic}
+• الحالة: معتمد
+• وقت المعالجة: {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+            """
+            
+            # إرسال الرسالة إلى مجموعة التلغرام
+            group_chat_id = "-4974906808"  # رقم الغروب
+            send_telegram_message(group_chat_id, archive_message)
+            
+        except Exception as e:
+            print(f"فشل في إرسال الأرشيف إلى التلغرام: {str(e)}")
     
     return jsonify({
         "success": True,
@@ -6783,6 +6802,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
