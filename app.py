@@ -6349,41 +6349,58 @@ def get_supervisor_2_delay_requests():
 def handle_supervisor_request(request_type, request_id, action):
     if 'employee' not in session:
         return jsonify({"message": "يرجى تسجيل الدخول"}), 401
-    
+
     supervisor_id = session['employee']['id']
     supervisor = db.session.get(Employee, supervisor_id)
-    
-    # التحقق من صلاحية المشرف
+
     if not supervisor or supervisor.role != 'مشرف':
         return jsonify({"message": "غير مصرح بالوصول"}), 403
-    
-    # تحديد الجدول المناسب بناءً على نوع الطلب
+
     model_map = {
         'leave': LeaveRequest,
         'overtime': AdditionalAttendanceRecord,
         'compensation': CompensationLeaveRequest,
         'delay': WorkDelayArchive
     }
+
+    # قاموس لتحويل أنواع الطلبات إلى العربية
+    request_type_arabic = {
+        'leave': 'إجازة',
+        'overtime': 'عمل إضافي',
+        'compensation': 'تعويض',
+        'delay': 'تأخير'
+    }
     
+    # قاموس لتحويل أنواع الإجازات إلى العربية
+    leave_type_arabic = {
+        'hourly': 'ساعية',
+        'daily': 'يومية',
+        'multi-day': 'متعددة الأيام'
+    }
+    
+    # قاموس لتحويل تصنيفات الإجازات إلى العربية
+    classification_arabic = {
+        'normal': 'عادية',
+        'sick': 'مرضية',
+        'emergency': 'طارئة'
+    }
+
     model = model_map.get(request_type)
     if not model:
         return jsonify({"message": "نوع الطلب غير صحيح"}), 400
-    
-    # جلب الطلب من قاعدة البيانات
+
     request_record = db.session.get(model, request_id)
     if not request_record:
         return jsonify({"message": "الطلب غير موجود"}), 404
-    
-    # جلب الموظف صاحب الطلب
+
     employee = db.session.get(Employee, request_record.employee_id)
     if not employee:
         return jsonify({"message": "الموظف صاحب الطلب غير موجود"}), 404
-    
-    # التحقق من أن الموظف في قسم المشرف
+
     if employee.department_id != supervisor.department_id:
         return jsonify({"message": "غير مصرح بتعديل هذا الطلب"}), 403
-    
-    # تحديث حالة الطلب بناءً على النوع
+
+    # تحديث حالة الطلب
     if request_type == 'delay':
         if action == 'approve':
             request_record.status = 'Justified'
@@ -6391,18 +6408,17 @@ def handle_supervisor_request(request_type, request_id, action):
             request_record.status = 'Unjustified'
     else:
         request_record.status = 'approved' if action == 'approve' else 'rejected'
-    
-    # إذا كان طلب عمل إضافي تمت الموافقة عليه
+
     if request_type == 'overtime' and action == 'approve':
         overtime_hours = request_record.add_attendance_minutes / 60
-        # employee.overtime_balance += overtime_hours  # فك التعليق إذا كنت تريد تحديث الرصيد
-    
+        # employee.overtime_balance += overtime_hours
+
     db.session.commit()
-    
+
     # إرسال إشعار للموظف
     notification = Notification(
         recipient_id=request_record.employee_id,
-        message=f"تم { 'الموافقة على' if action=='approve' else 'رفض' } طلبك ({request_type})"
+        message=f"تم {'الموافقة على' if action=='approve' else 'رفض'} طلبك ({request_type_arabic.get(request_type, request_type)})"
     )
     db.session.add(notification)
     db.session.commit()
@@ -6410,30 +6426,106 @@ def handle_supervisor_request(request_type, request_id, action):
     # إرسال الطلب المعتمد إلى مجموعة التلغرام كأرشيف
     if action == 'approve':
         try:
-            # إعداد رسالة الأرشيف
+            # تنسيق الرسالة حسب نوع الطلب
+            if request_type == 'leave':
+                # تحويل النوع والتصنيف إلى العربية
+                arabic_type = leave_type_arabic.get(request_record.type, request_record.type)
+                arabic_classification = classification_arabic.get(request_record.classification, request_record.classification)
+                
+                # تحديد تفاصيل العرض حسب نوع الإجازة
+                if request_record.type == 'hourly':
+                    # تحويل الوقت إلى تنسيق مناسب
+                    start_time_str = request_record.start_time.strftime('%H:%M') if request_record.start_time else "غير محدد"
+                    end_time_str = request_record.end_time.strftime('%H:%M') if request_record.end_time else "غير محدد"
+                    
+                    details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• التاريخ: {request_record.start_date}
+• الوقت: من {start_time_str} إلى {end_time_str}
+• المدة: {request_record.hours_requested:.2f} ساعة
+• السبب: {request_record.note}
+                    """
+                elif request_record.type == 'daily':
+                    details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• التاريخ: {request_record.start_date}
+• المدة: {request_record.hours_requested:.2f} ساعة
+• السبب: {request_record.note}
+                    """
+                elif request_record.type == 'multi-day':
+                    details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• من تاريخ: {request_record.start_date}
+• إلى تاريخ: {request_record.end_date}
+• المدة: {request_record.hours_requested:.2f} ساعة
+• السبب: {request_record.note}
+                    """
+                else:
+                    details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• من تاريخ: {request_record.start_date}
+• إلى تاريخ: {request_record.end_date}
+• المدة: {request_record.hours_requested:.2f} ساعة
+• السبب: {request_record.note}
+                    """
+            elif request_type == 'overtime':
+                # تحويل الدقائق إلى ساعات ودقائق
+                hours = request_record.add_attendance_minutes // 60
+                minutes = request_record.add_attendance_minutes % 60
+                time_display = f"{hours} ساعة و {minutes} دقيقة" if hours > 0 else f"{minutes} دقيقة"
+                
+                details = f"""
+• التاريخ: {request_record.add_attendance_date}
+• المدة: {time_display}
+• السبب: {request_record.reason}
+                """
+            elif request_type == 'compensation':
+                details = f"""
+• من تاريخ: {request_record.start_date}
+• إلى تاريخ: {request_record.end_date}
+• المدة: {request_record.duration} أيام
+• السبب: {request_record.reason}
+                """
+            elif request_type == 'delay':
+                # تحويل دقائق التأخير إلى تنسيق أفضل
+                delay_hours = request_record.delay_minutes // 60
+                delay_minutes = request_record.delay_minutes % 60
+                delay_display = f"{delay_hours} ساعة و {delay_minutes} دقيقة" if delay_hours > 0 else f"{delay_minutes} دقيقة"
+                
+                details = f"""
+• التاريخ: {request_record.delay_date}
+• مدة التأخير: {delay_display}
+• السبب: {request_record.reason}
+                """
+            else:
+                details = "• لا توجد تفاصيل إضافية"
+
             archive_message = f"""
 📋 <b>طلب معتمد - أرشيف</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• نوع الطلب: {request_type}
+• نوع الطلب: {request_type_arabic.get(request_type, request_type)}
 • الموظف: {employee.full_name_arabic}
 • القسم: {employee.department.dep_name}
 • المشرف: {supervisor.full_name_arabic}
-• الحالة: معتمد
+{details}
 • وقت المعالجة: {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
             """
             
-            # إرسال الرسالة إلى مجموعة التلغرام
-            group_chat_id = "-4974906808"  # رقم الغروب
+            group_chat_id = "-4974906808"
             send_telegram_message(group_chat_id, archive_message)
             
         except Exception as e:
             print(f"فشل في إرسال الأرشيف إلى التلغرام: {str(e)}")
-    
+
     return jsonify({
         "success": True,
-        "message": f"تم { 'الموافقة على' if action=='approve' else 'رفض' } الطلب بنجاح"
+        "message": f"تم {'الموافقة على' if action=='approve' else 'رفض'} الطلب بنجاح"
     }), 200
 @app.route('/api/sp-overtime-requests/<int:request_id>/time', methods=['PUT'])
 def update_overtime_time(request_id):
@@ -6802,6 +6894,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
