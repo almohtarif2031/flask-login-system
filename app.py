@@ -6485,10 +6485,11 @@ def handle_supervisor_request(request_type, request_id, action):
                 """
             elif request_type == 'compensation':
                 details = f"""
-• من تاريخ: {request_record.start_date}
-• إلى تاريخ: {request_record.end_date}
-• المدة: {request_record.duration} أيام
-• السبب: {request_record.reason}
+• التاريخ: {request_record.date}  # بدل start_date
+• من وقت: {request_record.start_time.strftime('%H:%M') if request_record.start_time else "غير محدد"}
+• إلى وقت: {request_record.end_time.strftime('%H:%M') if request_record.end_time else "غير محدد"}
+• المدة: {request_record.hours_requested:.2f} ساعة
+• السبب: {request_record.note}
                 """
             elif request_type == 'delay':
                 # تحويل دقائق التأخير إلى تنسيق أفضل
@@ -6894,6 +6895,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
