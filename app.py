@@ -6479,9 +6479,9 @@ def handle_supervisor_request(request_type, request_id, action):
                 time_display = f"{hours} ساعة و {minutes} دقيقة" if hours > 0 else f"{minutes} دقيقة"
                 
                 details = f"""
-• التاريخ: {request_record.add_attendance_date}
+• التاريخ: {request_record.date}
 • المدة: {time_display}
-• السبب: {request_record.reason}
+• السبب: {request_record.notes}
                 """
             elif request_type == 'compensation':
                 # التحقق من وجود البيانات قبل استخدامها
@@ -6513,14 +6513,14 @@ def handle_supervisor_request(request_type, request_id, action):
                 """
             elif request_type == 'delay':
                 # تحويل دقائق التأخير إلى تنسيق أفضل
-                delay_hours = request_record.delay_minutes // 60
-                delay_minutes = request_record.delay_minutes % 60
-                delay_display = f"{delay_hours} ساعة و {delay_minutes} دقيقة" if delay_hours > 0 else f"{delay_minutes} دقيقة"
+                delay_hours = request_record.minutes_delayed // 60
+                delay_minutes = request_record.minutes_delayed % 60
+                delay_display = f"{delay_hours} ساعة و {minutes} دقيقة" if delay_hours > 0 else f"{minutes} دقيقة"
                 
                 details = f"""
-• التاريخ: {request_record.delay_date}
+• التاريخ: {request_record.date}
 • مدة التأخير: {delay_display}
-• السبب: {request_record.reason}
+• السبب: {request_record.delay_note}
                 """
             else:
                 details = "• لا توجد تفاصيل إضافية"
@@ -6916,6 +6916,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
