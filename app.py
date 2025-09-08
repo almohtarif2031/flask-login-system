@@ -6484,12 +6484,32 @@ def handle_supervisor_request(request_type, request_id, action):
 • السبب: {request_record.reason}
                 """
             elif request_type == 'compensation':
+                # التحقق من وجود البيانات قبل استخدامها
+                date_str = request_record.date.strftime('%Y-%m-%d') if request_record.date else "غير محدد"
+                
+                start_time_str = "غير محدد"
+                if request_record.start_time:
+                    if hasattr(request_record.start_time, 'strftime'):
+                        start_time_str = request_record.start_time.strftime('%H:%M')
+                    else:
+                        start_time_str = str(request_record.start_time)
+                
+                end_time_str = "غير محدد"
+                if request_record.end_time:
+                    if hasattr(request_record.end_time, 'strftime'):
+                        end_time_str = request_record.end_time.strftime('%H:%M')
+                    else:
+                        end_time_str = str(request_record.end_time)
+                
+                hours = request_record.hours_requested if request_record.hours_requested else 0
+                note = request_record.note if request_record.note else "لا يوجد"
+                
                 details = f"""
-• التاريخ: {request_record.date} 
-• من وقت: {request_record.start_time.strftime('%H:%M') if request_record.start_time else "غير محدد"}
-• إلى وقت: {request_record.end_time.strftime('%H:%M') if request_record.end_time else "غير محدد"}
-• المدة: {request_record.hours_requested:.2f} ساعة
-• السبب: {request_record.note}
+• التاريخ: {date_str} 
+• من وقت: {start_time_str}
+• إلى وقت: {end_time_str}
+• المدة: {hours:.2f} ساعة
+• السبب: {note}
                 """
             elif request_type == 'delay':
                 # تحويل دقائق التأخير إلى تنسيق أفضل
@@ -6523,6 +6543,7 @@ def handle_supervisor_request(request_type, request_id, action):
             
         except Exception as e:
             print(f"فشل في إرسال الأرشيف إلى التلغرام: {str(e)}")
+            # يمكنك إضافة تسجيل الخطأ في قاعدة البيانات هنا إذا أردت
 
     return jsonify({
         "success": True,
@@ -6895,6 +6916,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
