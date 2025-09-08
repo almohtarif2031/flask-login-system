@@ -6538,7 +6538,7 @@ def handle_supervisor_request(request_type, request_id, action):
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
             """
             
-            group_chat_id = "-4974906808"
+            group_chat_id = "-3006313636"
             send_telegram_message(group_chat_id, archive_message)
             
         except Exception as e:
@@ -6916,6 +6916,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
