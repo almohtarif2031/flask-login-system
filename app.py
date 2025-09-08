@@ -6515,7 +6515,7 @@ def handle_supervisor_request(request_type, request_id, action):
                 # تحويل دقائق التأخير إلى تنسيق أفضل
                 delay_hours = request_record.minutes_delayed // 60
                 delay_minutes = request_record.minutes_delayed % 60
-                delay_display = f"{delay_hours} ساعة و {minutes} دقيقة" if delay_hours > 0 else f"{minutes} دقيقة"
+                delay_display = f"{delay_hours} ساعة و {delay_minutes} دقيقة" if delay_hours > 0 else f"{delay_minutes} دقيقة"
                 
                 details = f"""
 • التاريخ: {request_record.date}
@@ -6916,6 +6916,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
