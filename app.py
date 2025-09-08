@@ -6485,7 +6485,7 @@ def handle_supervisor_request(request_type, request_id, action):
                 """
             elif request_type == 'compensation':
                 details = f"""
-• التاريخ: {request_record.date}  # بدل start_date
+• التاريخ: {request_record.date} 
 • من وقت: {request_record.start_time.strftime('%H:%M') if request_record.start_time else "غير محدد"}
 • إلى وقت: {request_record.end_time.strftime('%H:%M') if request_record.end_time else "غير محدد"}
 • المدة: {request_record.hours_requested:.2f} ساعة
@@ -6895,6 +6895,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
