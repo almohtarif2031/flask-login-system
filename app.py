@@ -6557,8 +6557,6 @@ def handle_supervisor_request(request_type, request_id, action):
 📢 <b>إشعار إجازة موظف</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • الموظف: {employee.full_name_arabic}
-• القسم: {employee.department.dep_name}
-• المنصب: {employee.position}
 {leave_details}
 • وقت الإعلان: {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -6960,6 +6958,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
