@@ -6542,11 +6542,14 @@ def handle_supervisor_request(request_type, request_id, action):
                 delay_hours = request_record.minutes_delayed // 60
                 delay_minutes = request_record.minutes_delayed % 60
                 delay_display = f"{delay_hours} ساعة و {delay_minutes} دقيقة" if delay_hours > 0 else f"{delay_minutes} دقيقة"
-                
+                from_time_str = request_record.from_timestamp.strftime('%I:%M %p') if request_record.from_timestamp else "غير محدد"
+                to_time_str = request_record.to_timestamp.strftime('%I:%M %p') if request_record.to_timestamp else "غير محدد"
+
                 details = f"""
 • التاريخ: {request_record.date}
+• وقت التأخير: من {from_time_str} إلى {to_time_str}
 • مدة التأخير: {delay_display}
-• السبب: {request_record.delay_note}
+• السبب/تبرير التأخير: {request_record.delay_note if request_record.delay_note else "لا يوجد"}
                 """
             else:
                 details = "• لا توجد تفاصيل إضافية"
@@ -6942,6 +6945,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
