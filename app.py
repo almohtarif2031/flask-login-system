@@ -4,7 +4,6 @@ from sqlalchemy import Date, Time, Text  # هذا إن لم تكن تستورد 
 from sqlalchemy import Column, Enum
 from flask_cors import CORS
 import os
-import threading
 import time  # ✅ هذا صحيح
 from datetime import datetime, date, time
 from datetime import datetime, timezone, timedelta
@@ -6945,6 +6944,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
