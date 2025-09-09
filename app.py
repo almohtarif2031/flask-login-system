@@ -6510,6 +6510,82 @@ def handle_supervisor_request(request_type, request_id, action):
             group_chat_id = "-4847322310"
             send_telegram_message(group_chat_id, archive_message)
             
+            # إرسال رسالة منفصلة للإجازات لإعلام الموظفين في القسم فقط
+            if request_type == 'leave':
+                # تحويل النوع والتصنيف إلى العربية
+                arabic_type = leave_type_arabic.get(request_record.type, request_record.type)
+                arabic_classification = classification_arabic.get(request_record.classification, request_record.classification)
+                
+                # رسالة مختصرة للموظفين مع تفاصيل التاريخ والوقت ولكن بدون السبب
+                if request_record.type == 'hourly':
+                    start_time_str = request_record.start_time.strftime('%I:%M %p') if request_record.start_time else "غير محدد"
+                    end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
+                    leave_details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• التاريخ: {request_record.start_date}
+• وقت البدء: {start_time_str}
+• وقت الانتهاء: {end_time_str}
+• المدة: {request_record.hours_requested:.2f} ساعة
+                    """
+                elif request_record.type == 'daily':
+                    leave_details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• التاريخ: {request_record.start_date}
+• المدة: {request_record.hours_requested:.2f} ساعة
+                    """
+                elif request_record.type == 'multi-day':
+                    leave_details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• تاريخ البدء: {request_record.start_date}
+• تاريخ الانتهاء: {request_record.end_date}
+• المدة: {request_record.hours_requested:.2f} ساعة
+                    """
+                else:
+                    leave_details = f"""
+• نوع الإجازة: {arabic_type}
+• التصنيف: {arabic_classification}
+• تاريخ البدء: {request_record.start_date}
+• تاريخ الانتهاء: {request_record.end_date}
+• المدة: {request_record.hours_requested:.2f} ساعة
+                    """
+                
+                # رسالة إعلام للموظفين
+                announcement_message = f"""
+📢 <b>إشعار إجازة موظف</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• الموظف: {employee.full_name_arabic}
+• القسم: {employee.department.dep_name}
+• المنصب: {employee.position}
+{leave_details}
+• تمت الموافقة من قبل: {supervisor.full_name_arabic}
+• وقت الإعلان: {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                
+                # جمع جميع telegram_chatid للموظفين في القسم نفسه
+                department_employees = Employee.query.filter_by(
+                    department_id=employee.department_id
+                ).filter(
+                    Employee.telegram_chatid.isnot(None),
+                    Employee.id != employee.id  # استبعاد الموظف صاحب الإجازة
+                ).all()
+                
+                # إضافة المشرف إلى قائمة المستلمين إذا كان لديه telegram_chatid ولم يكن هو صاحب الإجازة
+                if supervisor.telegram_chatid and supervisor.id != employee.id:
+                    department_employees.append(supervisor)
+                
+                # إرسال الرسالة لكل موظف في القسم بشكل منفرد
+                for dept_employee in department_employees:
+                    if dept_employee.telegram_chatid:
+                        try:
+                            send_telegram_message(dept_employee.telegram_chatid, announcement_message)
+                        except Exception as e:
+                            print(f"فشل في إرسال الرسالة إلى {dept_employee.full_name_arabic}: {str(e)}")
+                
         except Exception as e:
             print(f"فشل في إرسال الأرشيف إلى التلغرام: {str(e)}")
             # يمكنك إضافة تسجيل الخطأ في قاعدة البيانات هنا إذا أردت
@@ -6885,6 +6961,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
