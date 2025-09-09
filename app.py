@@ -6501,9 +6501,11 @@ def handle_supervisor_request(request_type, request_id, action):
                 hours = request_record.add_attendance_minutes // 60
                 minutes = request_record.add_attendance_minutes % 60
                 time_display = f"{hours} ساعة و {minutes} دقيقة" if hours > 0 else f"{minutes} دقيقة"
-                
+                start_time_str = request_record.start_time.strftime('%I:%M %p') if request_record.start_time else "غير محدد"
+                end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
                 details = f"""
 • التاريخ: {request_record.date}
+• الوقت: من {start_time_str} إلى {end_time_str}
 • المدة: {time_display}
 • السبب: {request_record.notes}
                 """
@@ -6940,6 +6942,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
