@@ -821,18 +821,21 @@ def send_telegram_message(chat_id, message, max_retries=3, retry_delay=2):
         try:
             response = requests.post(TELEGRAM_API_URL, json=payload, timeout=10)
             response.raise_for_status()  # يرمي خطأ لو الاستجابة ليست 200
-            return True  # نجاح الإرسال
+            print("✅ تم إرسال الرسالة بنجاح")
+            return True
 
         except requests.exceptions.Timeout:
             print(f"⏳ مهلة منتهية - المحاولة {attempt}/{max_retries}")
-        
-        except requests.exceptions.RequestException as e:
-            print(f"❌ خطأ في Telegram API: {e}")
-            # لو الخطأ غير متعلق بالوقت (مثل 400 أو 401) الأفضل نوقف مباشرة
-            if response is not None and response.status_code < 500:
-                return False  
 
-        # انتظار قبل إعادة المحاولة (لو لم تكن الأخيرة)
+        except requests.exceptions.RequestException as e:
+            error_text = response.text if 'response' in locals() and response is not None else str(e)
+            print(f"❌ خطأ في Telegram API (المحاولة {attempt}/{max_retries}): {e}")
+            print(f"📩 تفاصيل الاستجابة: {error_text}")
+
+            # إذا الخطأ من نوع 400 أو 401 أو غيرها (مش مؤقت) نوقف مباشرة
+            if response is not None and response.status_code < 500:
+                return False
+
         if attempt < max_retries:
             time.sleep(retry_delay)
 
@@ -6939,6 +6942,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
