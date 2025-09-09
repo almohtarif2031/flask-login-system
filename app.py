@@ -4676,12 +4676,10 @@ def create_leave_request():
             return jsonify({"message": "بيانات ناقصة"}), 400
 
         # تحقق من الحقول الإضافية حسب نوع الإجازة
-        if data['type'] == 'hourly':
-            if 'start_time' not in data or 'end_time' not in data:
-                return jsonify({"message": "يجب تحديد وقت البداية والنهاية للإجازة الساعية"}), 400
-        elif data['type'] == 'multi-day':
-            if 'end_date' not in data:
-                return jsonify({"message": "يجب تحديد تاريخ النهاية للإجازة المتعددة الأيام"}), 400
+        if data['type'] == 'hourly' and ('start_time' not in data or 'end_time' not in data):
+            return jsonify({"message": "يجب تحديد وقت البداية والنهاية للإجازة الساعية"}), 400
+        elif data['type'] == 'multi-day' and 'end_date' not in data:
+            return jsonify({"message": "يجب تحديد تاريخ النهاية للإجازة المتعددة الأيام"}), 400
 
         employee = db.session.get(Employee, employee_id)
         if not employee:
@@ -4694,72 +4692,38 @@ def create_leave_request():
 
         # حساب مدة الإجازة
         hours_requested = 0.0
+        start_dt = end_dt = None
 
         if data['type'] == 'hourly':
-            try:
-                start_time = datetime.strptime(data['start_time'], '%H:%M').time()
-                end_time = datetime.strptime(data['end_time'], '%H:%M').time()
-
-                start_dt = datetime.combine(datetime.today(), start_time)
-                end_dt = datetime.combine(datetime.today(), end_time)
-                if end_dt < start_dt:
-                    end_dt += timedelta(days=1)
-
-                diff = end_dt - start_dt
-                hours_requested = diff.total_seconds() / 3600
-
-                start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-                end_date = start_date
-            except ValueError:
-                return jsonify({"message": "تنسيق الوقت غير صحيح. استخدم الصيغة HH:MM"}), 400
-
-        elif data['type'] == 'daily':
-            # استخدام وقت العمل من بيانات الموظف أو أوقات افتراضية
-            if employee.work_start_time and employee.work_end_time:
-                start_dt = datetime.combine(datetime.today(), employee.work_start_time)
-                end_dt = datetime.combine(datetime.today(), employee.work_end_time)
-            else:
-                # أوقات افتراضية إذا لم تكن محددة
-                start_dt = datetime.combine(datetime.today(), datetime.strptime('09:00', '%H:%M').time())
-                end_dt = datetime.combine(datetime.today(), datetime.strptime('17:00', '%H:%M').time())
-            
+            start_time = datetime.strptime(data['start_time'], '%H:%M').time()
+            end_time = datetime.strptime(data['end_time'], '%H:%M').time()
+            start_dt = datetime.combine(datetime.today(), start_time)
+            end_dt = datetime.combine(datetime.today(), end_time)
             if end_dt < start_dt:
                 end_dt += timedelta(days=1)
-            
             hours_requested = (end_dt - start_dt).total_seconds() / 3600
+            start_date = end_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
 
-            try:
-                start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-                end_date = start_date
-            except ValueError:
-                return jsonify({"message": "تنسيق التاريخ غير صحيح. استخدم الصيغة YYYY-MM-DD"}), 400
+        elif data['type'] == 'daily':
+            start_dt = datetime.combine(datetime.today(), employee.work_start_time if employee.work_start_time else datetime.strptime('09:00', '%H:%M').time())
+            end_dt = datetime.combine(datetime.today(), employee.work_end_time if employee.work_end_time else datetime.strptime('17:00', '%H:%M').time())
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+            hours_requested = (end_dt - start_dt).total_seconds() / 3600
+            start_date = end_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
 
         elif data['type'] == 'multi-day':
-            try:
-                start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-                end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
-                
-                if end_date < start_date:
-                    return jsonify({"message": "تاريخ النهاية يجب أن يكون بعد تاريخ البداية"}), 400
-                
-                num_days = (end_date - start_date).days + 1
-
-                # استخدام وقت العمل من بيانات الموظف أو أوقات افتراضية
-                if employee.work_start_time and employee.work_end_time:
-                    start_dt = datetime.combine(datetime.today(), employee.work_start_time)
-                    end_dt = datetime.combine(datetime.today(), employee.work_end_time)
-                else:
-                    # أوقات افتراضية إذا لم تكن محددة
-                    start_dt = datetime.combine(datetime.today(), datetime.strptime('09:00', '%H:%M').time())
-                    end_dt = datetime.combine(datetime.today(), datetime.strptime('17:00', '%H:%M').time())
-                
-                if end_dt < start_dt:
-                    end_dt += timedelta(days=1)
-                
-                daily_hours = (end_dt - start_dt).total_seconds() / 3600
-                hours_requested = num_days * daily_hours
-            except ValueError:
-                return jsonify({"message": "تنسيق التاريخ غير صحيح. استخدم الصيغة YYYY-MM-DD"}), 400
+            start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+            end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+            if end_date < start_date:
+                return jsonify({"message": "تاريخ النهاية يجب أن يكون بعد تاريخ البداية"}), 400
+            num_days = (end_date - start_date).days + 1
+            start_dt = datetime.combine(datetime.today(), employee.work_start_time if employee.work_start_time else datetime.strptime('09:00', '%H:%M').time())
+            end_dt = datetime.combine(datetime.today(), employee.work_end_time if employee.work_end_time else datetime.strptime('17:00', '%H:%M').time())
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+            daily_hours = (end_dt - start_dt).total_seconds() / 3600
+            hours_requested = num_days * daily_hours
 
         # التحقق من كون الموظف مشرفًا
         is_supervisor = Supervisor.query.filter_by(supervisor_ID=employee_id).first() is not None
@@ -4768,15 +4732,7 @@ def create_leave_request():
         # التحقق من رصيد الإجازة (فقط للطلبات المقبولة تلقائيًا)
         if is_supervisor:
             classification = data['classification']
-            current_balance = 0
-
-            if classification == 'normal':
-                current_balance = employee.regular_leave_hours
-            elif classification == 'sick':
-                current_balance = employee.sick_leave_hours
-            elif classification == 'emergency':
-                current_balance = employee.emergency_leave_hours
-
+            current_balance = getattr(employee, f"{classification}_leave_hours", 0)
             if hours_requested > current_balance:
                 return jsonify({
                     "message": "رصيد الإجازة غير كافي",
@@ -4792,12 +4748,12 @@ def create_leave_request():
             type=data['type'],
             classification=data['classification'],
             start_date=start_date,
-            end_date=end_date if data['type'] in ['multi-day'] else None,
+            end_date=end_date if data['type'] == 'multi-day' else None,
             hours_requested=hours_requested,
             status=status,
             note=data['note'],
-            start_time=datetime.strptime(data['start_time'], '%H:%M').time() if data['type'] == 'hourly' else None,
-            end_time=datetime.strptime(data['end_time'], '%H:%M').time() if data['type'] == 'hourly' else None,
+            start_time=start_dt.time() if data['type'] == 'hourly' else None,
+            end_time=end_dt.time() if data['type'] == 'hourly' else None,
             regular_leave_hours=hours_requested if data['classification'] == 'normal' else 0,
             sick_leave_hours=hours_requested if data['classification'] == 'sick' else 0,
             emergency_leave_hours=hours_requested if data['classification'] == 'emergency' else 0
@@ -4805,12 +4761,18 @@ def create_leave_request():
 
         db.session.add(new_request)
         db.session.flush()
-        
+
         # رسالة خاصة للإجازات المرضية
         medical_message = ""
         if data['classification'] == 'sick':
             medical_message = "يرجى أيضاً التواصل مع مسؤول قسم الموارد البشرية لعرض التقارير الطبية لحالتك، مع تمنياتنا لك بالسلامة."
-        
+
+        # تحديد نص المدة حسب نوع الإجازة
+        if data['type'] == 'hourly':
+            duration_text = f"• من الساعة: {start_dt.strftime('%I:%M %p')}\n• إلى الساعة: {end_dt.strftime('%I:%M %p')}\n• المدة: {hours_requested:.2f} ساعة"
+        else:
+            duration_text = f"• من تاريخ: {start_date.strftime('%Y-%m-%d')}\n• إلى تاريخ: {end_date.strftime('%Y-%m-%d') if data['type'] == 'multi-day' else start_date.strftime('%Y-%m-%d')}\n• المدة: {hours_requested:.2f} ساعة"
+
         # إرسال إشعارات للمشرفين إذا لم يكن الطلب تلقائي الموافقة
         if not is_supervisor:
             for supervisor in department_supervisors:
@@ -4819,8 +4781,7 @@ def create_leave_request():
                     message=f"طلب إجازة جديد من الموظف {employee.full_name_arabic}. {medical_message if data['classification'] == 'sick' else ''}"
                 )
                 db.session.add(notification)
-                
-                # إرسال الإشعار عبر التلغرام
+
                 supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
                 if supervisor_employee and supervisor_employee.telegram_chatid:
                     telegram_message = f"""
@@ -4830,7 +4791,7 @@ def create_leave_request():
 • القسم: {employee.department.dep_name}
 • نوع الإجازة: {data['type']}
 • التصنيف: {data['classification']}
-• المدة: {hours_requested} ساعة
+{duration_text}
 • الملاحظة: {data['note']}
 {medical_message if data['classification'] == 'sick' else ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -4842,55 +4803,35 @@ def create_leave_request():
                     except Exception as telegram_error:
                         print(f"فشل إرسال التلغرام: {telegram_error}")
         else:
-            # إذا كان الموظف مشرفاً، أرسل إشعاراً خاصاً له
             notification = Notification(
                 recipient_id=employee_id,
                 message=f"تم قبول طلب إجازتك تلقائياً. {medical_message if data['classification'] == 'sick' else ''}"
             )
             db.session.add(notification)
-        
+
         # إرسال إشعار للموظف نفسه إذا كانت الإجازة مرضية
         if data['classification'] == 'sick' and employee.telegram_chatid:
-            # رسالة خاصة للمشرفين
-            if is_supervisor:
-                employee_message = f"""
-✅ <b>تم قبول طلب إجازتك المرضية تلقائياً</b>
+            employee_message = f"""
+✅ <b>تم قبول طلب إجازتك المرضية{' تلقائياً' if is_supervisor else ''}</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• تم قبول طلب إجازتك المرضية بنجاح
-• {medical_message}
+{medical_message}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
-                """
-            else:
-                employee_message = f"""
-✅ <b>تم تقديم طلب إجازة مرضية</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• تم تقديم طلب إجازتك المرضية بنجاح
-• {medical_message}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
-𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
-                """
+            """
             try:
                 send_telegram_message(employee.telegram_chatid, employee_message)
             except Exception as telegram_error:
                 print(f"فشل إرسال التلغرام للموظف: {telegram_error}")
-        
+
         db.session.commit()
-        
+
         # رسالة الرد النهائية
         if is_supervisor:
-            if data['classification'] == 'sick':
-                message = "تم قبول طلب إجازتك المرضية تلقائياً. " + medical_message
-            else:
-                message = "تم إنشاء وقبول طلب الإجازة تلقائيًا"
+            message = "تم قبول طلب إجازتك تلقائيًا. " + (medical_message if data['classification'] == 'sick' else "")
         else:
-            if data['classification'] == 'sick':
-                message = "تم إرسال طلب الإجازة المرضية بنجاح. " + medical_message
-            else:
-                message = "تم إرسال طلب الإجازة بنجاح"
-            
+            message = "تم إرسال طلب الإجازة بنجاح. " + (medical_message if data['classification'] == 'sick' else "")
+
         return jsonify({
             "success": True,
             "message": message,
@@ -4898,7 +4839,7 @@ def create_leave_request():
             "is_auto_approved": is_supervisor,
             "hours_requested": hours_requested
         }), 201
-        
+
     except Exception as e:
         db.session.rollback()
         print(f"Error in create_leave_request: {str(e)}")
@@ -6944,6 +6885,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
