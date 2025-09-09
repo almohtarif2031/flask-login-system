@@ -4,6 +4,7 @@ from sqlalchemy import Date, Time, Text  # هذا إن لم تكن تستورد 
 from sqlalchemy import Column, Enum
 from flask_cors import CORS
 import os
+import time  # ✅ هذا صحيح
 from datetime import datetime, date, time
 from datetime import datetime, timezone, timedelta
 from flask import send_from_directory
@@ -6557,7 +6558,7 @@ def handle_supervisor_request(request_type, request_id, action):
             archive_message = f"""
 📋 <b>طلب معتمد - أرشيف</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• نوع الطلب: {request_type_arabic.get(request_type, request_type)}
+• نوع الطلب: {"تبرير التأخير" if request_type == "delay" else request_type_arabic.get(request_type, request_type)}
 • الموظف: {employee.full_name_arabic}
 • القسم: {employee.department.dep_name}
 • المشرف: {supervisor.full_name_arabic}
@@ -6945,6 +6946,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
