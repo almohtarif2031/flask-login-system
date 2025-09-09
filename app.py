@@ -6560,7 +6560,6 @@ def handle_supervisor_request(request_type, request_id, action):
 • القسم: {employee.department.dep_name}
 • المنصب: {employee.position}
 {leave_details}
-• تمت الموافقة من قبل: {supervisor.full_name_arabic}
 • وقت الإعلان: {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
@@ -6961,6 +6960,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
