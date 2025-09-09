@@ -6460,8 +6460,8 @@ def handle_supervisor_request(request_type, request_id, action):
                 # تحديد تفاصيل العرض حسب نوع الإجازة
                 if request_record.type == 'hourly':
                     # تحويل الوقت إلى تنسيق مناسب
-                    start_time_str = request_record.start_time.strftime('%H:%M') if request_record.start_time else "غير محدد"
-                    end_time_str = request_record.end_time.strftime('%H:%M') if request_record.end_time else "غير محدد"
+                    start_time_str = request_record.start_time.strftime('%I:%M %p') if request_record.start_time else "غير محدد"
+                    end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
                     
                     details = f"""
 • نوع الإجازة: {arabic_type}
@@ -6946,6 +6946,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
