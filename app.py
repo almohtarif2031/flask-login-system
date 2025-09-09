@@ -6517,14 +6517,14 @@ def handle_supervisor_request(request_type, request_id, action):
                 start_time_str = "غير محدد"
                 if request_record.start_time:
                     if hasattr(request_record.start_time, 'strftime'):
-                        start_time_str = request_record.start_time.strftime('%H:%M')
+                        start_time_str = request_record.start_time.strftime('%I:%M %p')
                     else:
                         start_time_str = str(request_record.start_time)
                 
                 end_time_str = "غير محدد"
                 if request_record.end_time:
                     if hasattr(request_record.end_time, 'strftime'):
-                        end_time_str = request_record.end_time.strftime('%H:%M')
+                        end_time_str = request_record.end_time.strftime('%I:%M %p')
                     else:
                         end_time_str = str(request_record.end_time)
                 
@@ -6946,6 +6946,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
