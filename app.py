@@ -4,8 +4,9 @@ from sqlalchemy import Date, Time, Text  # هذا إن لم تكن تستورد 
 from sqlalchemy import Column, Enum
 from flask_cors import CORS
 import os
+import threading
 import time  # ✅ هذا صحيح
-from datetime import datetime, date, time as dt_time
+from datetime import datetime, date, time
 from datetime import datetime, timezone, timedelta
 from flask import send_from_directory
 import uuid
@@ -802,43 +803,41 @@ def update_compensation_request(request_id):
         db.session.rollback()
         return jsonify({'error': f'خطأ في تحديث حالة الطلب: {str(e)}'}), 500
 # دالة لإرسال رسالة تلغرام
-def send_telegram_message(chat_id, message, max_retries=3, retry_delay=2):
+def send_telegram_message(chat_id, message, max_retries=3, retry_delay=2, attempt=1):
     """
-    إرسال رسالة Telegram مع إعادة المحاولة عند الفشل
+    إرسال رسالة Telegram مع إعادة المحاولة عند الفشل بدون استخدام time.sleep()
     """
     TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-
     payload = {
         'chat_id': chat_id,
         'text': message,
         'parse_mode': 'HTML'
     }
 
-    for attempt in range(1, max_retries + 1):
-        response = None
-        try:
-            response = requests.post(TELEGRAM_API_URL, json=payload, timeout=10)
-            response.raise_for_status()
-            print("✅ تم إرسال الرسالة بنجاح")
-            return True
+    try:
+        response = requests.post(TELEGRAM_API_URL, json=payload, timeout=10)
+        response.raise_for_status()
+        print("✅ تم إرسال الرسالة بنجاح")
+        return True
 
-        except requests.exceptions.ConnectionError:
-            print(f"🌐 لا يوجد اتصال بالإنترنت أو الحظر مفعل - المحاولة {attempt}/{max_retries}")
+    except requests.exceptions.ConnectionError:
+        print(f"🌐 لا يوجد اتصال بالإنترنت أو الحظر مفعل - المحاولة {attempt}/{max_retries}")
 
-        except requests.exceptions.Timeout:
-            print(f"⏳ انتهت المهلة - المحاولة {attempt}/{max_retries}")
+    except requests.exceptions.Timeout:
+        print(f"⏳ انتهت المهلة - المحاولة {attempt}/{max_retries}")
 
-        except requests.exceptions.RequestException as e:
-            print(f"❌ خطأ في Telegram API (المحاولة {attempt}/{max_retries}): {e}")
-            if response is not None:
-                print(f"📩 تفاصيل الاستجابة: {response.text}")
-            if response is not None and response.status_code < 500:
-                return False
+    except requests.exceptions.RequestException as e:
+        print(f"❌ خطأ في Telegram API (المحاولة {attempt}/{max_retries}): {e}")
+        if 'response' in locals() and response is not None:
+            print(f"📩 تفاصيل الاستجابة: {response.text}")
+        if 'response' in locals() and response is not None and response.status_code < 500:
+            return False
 
-        if attempt < max_retries:
-            time.sleep(retry_delay)
-
-    return False
+    # جدولة إعادة المحاولة بدون sleep
+    if attempt < max_retries:
+        print(f"⏳ سيتم إعادة المحاولة بعد {retry_delay} ثانية...")
+        threading.Timer(retry_delay, send_telegram_message,
+                        args=(chat_id, message, max_retries, retry_delay, attempt + 1)).start()
 
 # دالة لإرسال التعميم لجميع الموظفين
 # def send_broadcast_to_employees(broadcast_message, broadcast_type, department_id=None):
@@ -6946,6 +6945,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
