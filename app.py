@@ -801,19 +801,42 @@ def update_compensation_request(request_id):
         db.session.rollback()
         return jsonify({'error': f'خطأ في تحديث حالة الطلب: {str(e)}'}), 500
 # دالة لإرسال رسالة تلغرام
-def send_telegram_message(chat_id, message):
-    """إرسال رسالة تلغرام إلى chat_id محدد"""
-    try:
-        payload = {
-            'chat_id': chat_id,
-            'text': message,
-            'parse_mode': 'HTML'
-        }
-        response = requests.post(TELEGRAM_API_URL, json=payload, timeout=30)
-        return response.status_code == 200
-    except Exception as e:
-        print(f"خطأ في إرسال رسالة تلغرام إلى {chat_id}: {str(e)}")
-        return False
+def send_telegram_message(chat_id, message, max_retries=3, retry_delay=2):
+    """
+    إرسال رسالة Telegram مع إعادة المحاولة عند الفشل
+    - chat_id: معرف المحادثة
+    - message: نص الرسالة
+    - max_retries: عدد المحاولات
+    - retry_delay: المدة (ثواني) بين المحاولات
+    """
+    TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+    payload = {
+        'chat_id': chat_id,
+        'text': message,
+        'parse_mode': 'HTML'
+    }
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.post(TELEGRAM_API_URL, json=payload, timeout=10)
+            response.raise_for_status()  # يرمي خطأ لو الاستجابة ليست 200
+            return True  # نجاح الإرسال
+
+        except requests.exceptions.Timeout:
+            print(f"⏳ مهلة منتهية - المحاولة {attempt}/{max_retries}")
+        
+        except requests.exceptions.RequestException as e:
+            print(f"❌ خطأ في Telegram API: {e}")
+            # لو الخطأ غير متعلق بالوقت (مثل 400 أو 401) الأفضل نوقف مباشرة
+            if response is not None and response.status_code < 500:
+                return False  
+
+        # انتظار قبل إعادة المحاولة (لو لم تكن الأخيرة)
+        if attempt < max_retries:
+            time.sleep(retry_delay)
+
+    return False  # فشل بعد كل المحاولات
 
 # دالة لإرسال التعميم لجميع الموظفين
 # def send_broadcast_to_employees(broadcast_message, broadcast_type, department_id=None):
@@ -6916,6 +6939,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
