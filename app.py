@@ -4739,7 +4739,15 @@ def create_leave_request():
         classification = data['classification']
         
         # استخدام الأعمدة الجديدة مباشرة للتحقق من الرصيد
-        current_balance = getattr(employee, f"{classification}_leave_remaining", 0)
+        # التصحيح: استخدام الأعمدة الصحيحة من قاعدة البيانات
+        if classification == 'regular':
+            current_balance = employee.regular_leave_remaining
+        elif classification == 'sick':
+            current_balance = employee.sick_leave_remaining
+        elif classification == 'emergency':
+            current_balance = employee.emergency_leave_remaining
+        else:
+            current_balance = 0
         
         if hours_requested > current_balance:
             return jsonify({
@@ -4770,17 +4778,15 @@ def create_leave_request():
         # إذا كان الطلب معتمداً تلقائياً (للمشرفين)، نخصم الرصيد فوراً
         if is_supervisor:
             # تحديث أرصدة الإجازات باستخدام الأعمدة الجديدة
-            used_attr = f"{classification}_leave_used"
-            remaining_attr = f"{classification}_leave_remaining"
-            total_attr = f"{classification}_leave_total"
-            
-            # زيادة الساعات المستخدمة
-            current_used = getattr(employee, used_attr, 0)
-            setattr(employee, used_attr, current_used + hours_requested)
-            
-            # تقليل الرصيد المتبقي
-            current_remaining = getattr(employee, remaining_attr, 0)
-            setattr(employee, remaining_attr, current_remaining - hours_requested)
+            if classification == 'regular':
+                employee.regular_leave_used += hours_requested
+                employee.regular_leave_remaining -= hours_requested
+            elif classification == 'sick':
+                employee.sick_leave_used += hours_requested
+                employee.sick_leave_remaining -= hours_requested
+            elif classification == 'emergency':
+                employee.emergency_leave_used += hours_requested
+                employee.emergency_leave_remaining -= hours_requested
 
         # رسالة خاصة للإجازات المرضية
         medical_message = ""
@@ -6957,6 +6963,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
