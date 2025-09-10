@@ -278,9 +278,6 @@ class LeaveRequest(db.Model):
     end_date = db.Column(db.Date, nullable=True)
     hours_requested = db.Column(db.Float)
     status = db.Column(db.String(50))  # pending/approved/rejected
-    regular_leave_hours = Column(db.Float, default=0.0)
-    sick_leave_hours = Column(db.Float, default=0.0)
-    emergency_leave_hours = Column(db.Float, default=0.0)
     start_time = db.Column(db.Time)  # بداية الإجازة الساعية (مثل 11:00)
     end_time = db.Column(db.Time)    # نهاية الإجازة الساعية (مثل 13:00)
     note = db.Column(db.Text)
@@ -6960,6 +6957,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
