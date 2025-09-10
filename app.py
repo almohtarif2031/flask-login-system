@@ -5665,66 +5665,7 @@ def get_employee_leave_balance():
         # حساب عدد ساعات العمل اليومية
         daily_work_hours = (end_minutes - start_minutes) / 60
 
-        # جلب جميع طلبات الإجازة المقبولة للموظف
-        approved_leaves = LeaveRequest.query.filter_by(
-            employee_id=employee_id,
-            status='approved'
-        ).all()
-
-        # حساب إجمالي الساعات المستخدمة لكل نوع
-        used_regular_hours = 0
-        used_sick_hours = 0
-        used_emergency_hours = 0
-
-        for leave in approved_leaves:
-            # إذا كان الطلب يحتوي على ساعات محددة
-            if leave.hours_requested:
-                hours_to_deduct = leave.hours_requested
-            else:
-                # حساب الساعات بناءً على التواريخ
-                if leave.end_date:
-                    # حساب عدد الأيام
-                    start_date = leave.start_date
-                    end_date = leave.end_date
-                    days_diff = (end_date - start_date).days + 1
-                    
-                    # حساب عدد أيام العمل (استثناء يوم العطلة الأسبوعية)
-                    work_days = 0
-                    current_date = start_date
-                    
-                    while current_date <= end_date:
-                        # تحويل يوم العطلة الأسبوعية إلى رقم
-                        weekly_off_day = employee.weekly_day_off.lower()
-                        day_mapping = {
-                            'monday': 0, 'tuesday': 1, 'wednesday': 2, 
-                            'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6,
-                            'الاثنين': 0, 'الثلاثاء': 1, 'الأربعاء': 2,
-                            'الخميس': 3, 'الجمعة': 4, 'السبت': 5, 'الأحد': 6
-                        }
-                        
-                        if current_date.weekday() != day_mapping.get(weekly_off_day, 6):
-                            work_days += 1
-                        
-                        current_date += timedelta(days=1)
-                    
-                    hours_to_deduct = work_days * daily_work_hours
-                else:
-                    # إجازة يوم واحد
-                    hours_to_deduct = daily_work_hours
-
-            # توزيع الساعات حسب نوع الإجازة
-            if leave.classification == 'normal':
-                used_regular_hours += hours_to_deduct
-            elif leave.classification == 'sick':
-                used_sick_hours += hours_to_deduct
-            elif leave.classification == 'emergency':
-                used_emergency_hours += hours_to_deduct
-
-        # حساب الرصيد المتبقي
-        remaining_regular = max(0, employee.regular_leave_hours - used_regular_hours)
-        remaining_sick = max(0, employee.sick_leave_hours - used_sick_hours)
-        remaining_emergency = max(0, employee.emergency_leave_hours - used_emergency_hours)
-
+        # استخدام الأعمدة الجديدة مباشرة بدلاً من الحساب اليدوي
         return jsonify({
             'success': True,
             'employee_id': employee_id,
@@ -5732,19 +5673,19 @@ def get_employee_leave_balance():
             'daily_work_hours': daily_work_hours,
             'balance': {
                 'normal': {
-                    'total': employee.regular_leave_hours,
-                    'used': used_regular_hours,
-                    'remaining': remaining_regular
+                    'total': employee.regular_leave_total,
+                    'used': employee.regular_leave_used,
+                    'remaining': employee.regular_leave_remaining
                 },
                 'sick': {
-                    'total': employee.sick_leave_hours,
-                    'used': used_sick_hours,
-                    'remaining': remaining_sick
+                    'total': employee.sick_leave_total,
+                    'used': employee.sick_leave_used,
+                    'remaining': employee.sick_leave_remaining
                 },
                 'emergency': {
-                    'total': employee.emergency_leave_hours,
-                    'used': used_emergency_hours,
-                    'remaining': remaining_emergency
+                    'total': employee.emergency_leave_total,
+                    'used': employee.emergency_leave_used,
+                    'remaining': employee.emergency_leave_remaining
                 }
             }
         })
@@ -6983,6 +6924,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
