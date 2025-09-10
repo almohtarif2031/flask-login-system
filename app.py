@@ -151,7 +151,7 @@ class Employee(db.Model):
     regular_leave_hours = Column(db.Float, default=0.0)
     sick_leave_hours = Column(db.Float, default=0.0)
     emergency_leave_hours = Column(db.Float, default=0.0)
-    regular_leave_total = db.Column(db.Float, default=0.0)  # الإجمالي (50 ساعة)
+    regular_leave_total = db.Column(db.Float, default=0.0) 
     regular_leave_used = db.Column(db.Float, default=0.0)    # المستخدم
     regular_leave_remaining = db.Column(db.Float, default=0.0) # المتبقي
 
@@ -6968,6 +6968,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
