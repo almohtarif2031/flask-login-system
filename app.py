@@ -4669,7 +4669,6 @@ def delete_compensation_leave_request(request_id):
             "message": "حدث خطأ أثناء حذف الطلب",
             "error": str(e)
         }), 500
-# راوت إنشاء طلب الإجازة
 @app.route('/api/leave-requests', methods=['POST'])
 def create_leave_request():
     try:
@@ -4741,6 +4740,8 @@ def create_leave_request():
 
         # التحقق من رصيد الإجازة باستخدام الأعمدة الجديدة
         classification = data['classification']
+        
+        # استخدام الأعمدة الجديدة مباشرة للتحقق من الرصيد
         current_balance = getattr(employee, f"{classification}_leave_remaining", 0)
         
         if hours_requested > current_balance:
@@ -4763,10 +4764,7 @@ def create_leave_request():
             status=status,
             note=data['note'],
             start_time=start_dt.time() if data['type'] == 'hourly' else None,
-            end_time=end_dt.time() if data['type'] == 'hourly' else None,
-            regular_leave_hours=hours_requested if data['classification'] == 'normal' else 0,
-            sick_leave_hours=hours_requested if data['classification'] == 'sick' else 0,
-            emergency_leave_hours=hours_requested if data['classification'] == 'emergency' else 0
+            end_time=end_dt.time() if data['type'] == 'hourly' else None
         )
 
         db.session.add(new_request)
@@ -4777,15 +4775,15 @@ def create_leave_request():
             # تحديث أرصدة الإجازات باستخدام الأعمدة الجديدة
             used_attr = f"{classification}_leave_used"
             remaining_attr = f"{classification}_leave_remaining"
+            total_attr = f"{classification}_leave_total"
             
             # زيادة الساعات المستخدمة
-            setattr(employee, used_attr, getattr(employee, used_attr) + hours_requested)
-            # تقليل الرصيد المتبقي
-            setattr(employee, remaining_attr, getattr(employee, remaining_attr) - hours_requested)
+            current_used = getattr(employee, used_attr, 0)
+            setattr(employee, used_attr, current_used + hours_requested)
             
-            # تحديث الحقول القديمة للحفاظ على التوافق
-            old_balance_attr = f"{classification}_leave_hours"
-            setattr(employee, old_balance_attr, getattr(employee, old_balance_attr) - hours_requested)
+            # تقليل الرصيد المتبقي
+            current_remaining = getattr(employee, remaining_attr, 0)
+            setattr(employee, remaining_attr, current_remaining - hours_requested)
 
         # رسالة خاصة للإجازات المرضية
         medical_message = ""
@@ -6962,6 +6960,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
