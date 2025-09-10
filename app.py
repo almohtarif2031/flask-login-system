@@ -4739,16 +4739,16 @@ def create_leave_request():
         is_supervisor = Supervisor.query.filter_by(supervisor_ID=employee_id).first() is not None
         status = 'approved' if is_supervisor else 'pending'
 
-        # التحقق من رصيد الإجازة (فقط للطلبات المقبولة تلقائيًا)
-        if is_supervisor:
-            classification = data['classification']
-            current_balance = getattr(employee, f"{classification}_leave_hours", 0)
-            if hours_requested > current_balance:
-                return jsonify({
-                    "message": "رصيد الإجازة غير كافي",
-                    "requested": hours_requested,
-                    "available": current_balance
-                }), 400
+        # التحقق من رصيد الإجازة باستخدام الأعمدة الجديدة
+        classification = data['classification']
+        current_balance = getattr(employee, f"{classification}_leave_remaining", 0)
+        
+        if hours_requested > current_balance:
+            return jsonify({
+                "message": "رصيد الإجازة غير كافي",
+                "requested": hours_requested,
+                "available": current_balance
+            }), 400
 
         # إنشاء سجل الإجازة
         new_request = LeaveRequest(
@@ -4771,6 +4771,21 @@ def create_leave_request():
 
         db.session.add(new_request)
         db.session.flush()
+
+        # إذا كان الطلب معتمداً تلقائياً (للمشرفين)، نخصم الرصيد فوراً
+        if is_supervisor:
+            # تحديث أرصدة الإجازات باستخدام الأعمدة الجديدة
+            used_attr = f"{classification}_leave_used"
+            remaining_attr = f"{classification}_leave_remaining"
+            
+            # زيادة الساعات المستخدمة
+            setattr(employee, used_attr, getattr(employee, used_attr) + hours_requested)
+            # تقليل الرصيد المتبقي
+            setattr(employee, remaining_attr, getattr(employee, remaining_attr) - hours_requested)
+            
+            # تحديث الحقول القديمة للحفاظ على التوافق
+            old_balance_attr = f"{classification}_leave_hours"
+            setattr(employee, old_balance_attr, getattr(employee, old_balance_attr) - hours_requested)
 
         # رسالة خاصة للإجازات المرضية
         medical_message = ""
@@ -6968,6 +6983,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
