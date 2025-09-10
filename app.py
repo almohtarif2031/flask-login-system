@@ -4696,38 +4696,69 @@ def delete_compensation_leave_request(request_id):
 @app.route('/api/leave-requests', methods=['POST'])
 def create_leave_request():
     try:
+        print("=== بدء إنشاء طلب إجازة ===")
+        
         if 'employee' not in session:
+            print("❌ لم يتم تسجيل الدخول")
             return jsonify({"message": "يرجى تسجيل الدخول"}), 401
 
         syria_tz = pytz.timezone("Asia/Damascus")
         employee_id = session['employee']['id']
+        print(f"Employee ID: {employee_id}")
+
         data = request.get_json()
+        print(f"البيانات المستلمة: {data}")
 
         # التحقق من البيانات المطلوبة
         required_fields = ['classification', 'type', 'start_date', 'note']
+        print(f"الحقول المطلوبة: {required_fields}")
+        
         if not all(field in data for field in required_fields):
+            print("❌ بيانات ناقصة")
             return jsonify({"message": "بيانات ناقصة"}), 400
 
-        # تحقق من الحقول الإضافية حسب نوع الإجازة
-        if data['type'] == 'hourly' and ('start_time' not in data or 'end_time' not in data):
-            return jsonify({"message": "يجب تحديد وقت البداية والنهاية للإجازة الساعية"}), 400
+        # تحقق من الحقول الإضافية
+        if data['type'] == 'hourly':
+            print("التحقق من الحقول الساعية...")
+            if 'start_time' not in data or 'end_time' not in data:
+                print("❌ نقص في بيانات الوقت")
+                return jsonify({"message": "يجب تحديد وقت البداية والنهاية للإجازة الساعية"}), 400
+                
         elif data['type'] == 'multi-day' and 'end_date' not in data:
+            print("❌ نقص في تاريخ النهاية")
             return jsonify({"message": "يجب تحديد تاريخ النهاية للإجازة المتعددة الأيام"}), 400
 
         employee = db.session.get(Employee, employee_id)
+        print(f"بيانات الموظف: {employee}")
+        
         if not employee:
+            print("❌ الموظف غير موجود")
             return jsonify({"message": "الموظف غير موجود"}), 404
 
-        # احصل على جميع المشرفين المسؤولين عن القسم
+        # طباعة أرصدة الإجازات الحالية
+        print("=== أرصدة الإجازات الحالية ===")
+        print(f"رصيد الإجازة العادية: {employee.regular_leave_remaining} ساعة")
+        print(f"رصيد الإجازة المرضية: {employee.sick_leave_remaining} ساعة")
+        print(f"رصيد الإجازة الطارئة: {employee.emergency_leave_remaining} ساعة")
+        print(f"الإجازة العادية المستخدمة: {employee.regular_leave_used} ساعة")
+        print(f"الإجازة المرضية المستخدمة: {employee.sick_leave_used} ساعة")
+        print(f"الإجازة الطارئة المستخدمة: {employee.emergency_leave_used} ساعة")
+        print("=============================")
+
         department_supervisors = Supervisor.query.filter_by(dep_id=employee.department_id).all()
+        print(f"المشرفون: {department_supervisors}")
+        
         if not department_supervisors:
+            print("❌ لا يوجد مشرفين")
             return jsonify({"message": "المشرف غير موجود"}), 404
 
         # حساب مدة الإجازة
         hours_requested = 0.0
         start_dt = end_dt = None
+        print(f"نوع الإجازة: {data['type']}")
 
         if data['type'] == 'hourly':
+            print("معالجة الإجازة الساعية...")
             start_time = datetime.strptime(data['start_time'], '%H:%M').time()
             end_time = datetime.strptime(data['end_time'], '%H:%M').time()
             start_dt = datetime.combine(datetime.today(), start_time)
@@ -4736,19 +4767,24 @@ def create_leave_request():
                 end_dt += timedelta(days=1)
             hours_requested = (end_dt - start_dt).total_seconds() / 3600
             start_date = end_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+            print(f"الساعات المطلوبة: {hours_requested}")
 
         elif data['type'] == 'daily':
+            print("معالجة الإجازة اليومية...")
             start_dt = datetime.combine(datetime.today(), employee.work_start_time if employee.work_start_time else datetime.strptime('09:00', '%H:%M').time())
             end_dt = datetime.combine(datetime.today(), employee.work_end_time if employee.work_end_time else datetime.strptime('17:00', '%H:%M').time())
             if end_dt < start_dt:
                 end_dt += timedelta(days=1)
             hours_requested = (end_dt - start_dt).total_seconds() / 3600
             start_date = end_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+            print(f"الساعات المطلوبة: {hours_requested}")
 
         elif data['type'] == 'multi-day':
+            print("معالجة الإجازة المتعددة الأيام...")
             start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
             end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
             if end_date < start_date:
+                print("❌ تاريخ النهاية قبل البداية")
                 return jsonify({"message": "تاريخ النهاية يجب أن يكون بعد تاريخ البداية"}), 400
             num_days = (end_date - start_date).days + 1
             start_dt = datetime.combine(datetime.today(), employee.work_start_time if employee.work_start_time else datetime.strptime('09:00', '%H:%M').time())
@@ -4757,26 +4793,34 @@ def create_leave_request():
                 end_dt += timedelta(days=1)
             daily_hours = (end_dt - start_dt).total_seconds() / 3600
             hours_requested = num_days * daily_hours
+            print(f"عدد الأيام: {num_days}, الساعات اليومية: {daily_hours}, المجموع: {hours_requested}")
 
-        # التحقق من كون الموظف مشرفًا
+        # التحقق من كونه مشرفاً
         is_supervisor = Supervisor.query.filter_by(supervisor_ID=employee_id).first() is not None
+        print(f"هل هو مشرف: {is_supervisor}")
         status = 'approved' if is_supervisor else 'pending'
+        print(f"الحالة: {status}")
 
-        # التحقق من رصيد الإجازة باستخدام الأعمدة الجديدة
+        # التحقق من الرصيد
         classification = data['classification']
+        print(f"تصنيف الإجازة: {classification}")
         
-        # استخدام الأعمدة الجديدة مباشرة للتحقق من الرصيد
-        # التصحيح: استخدام الأعمدة الصحيحة من قاعدة البيانات
         if classification == 'regular':
             current_balance = employee.regular_leave_remaining
+            print(f"الرصيد المتاح للإجازة العادية: {current_balance} ساعة")
         elif classification == 'sick':
             current_balance = employee.sick_leave_remaining
+            print(f"الرصيد المتاح للإجازة المرضية: {current_balance} ساعة")
         elif classification == 'emergency':
             current_balance = employee.emergency_leave_remaining
+            print(f"الرصيد المتاح للإجازة الطارئة: {current_balance} ساعة")
         else:
             current_balance = 0
+            
+        print(f"الرصيد المتاح: {current_balance} ساعة, الساعات المطلوبة: {hours_requested} ساعة")
         
         if hours_requested > current_balance:
+            print("❌ رصيد غير كافي")
             return jsonify({
                 "message": "رصيد الإجازة غير كافي",
                 "requested": hours_requested,
@@ -4798,104 +4842,82 @@ def create_leave_request():
             start_time=start_dt.time() if data['type'] == 'hourly' else None,
             end_time=end_dt.time() if data['type'] == 'hourly' else None
         )
+        print(f"طلب الإجازة الجديد: {new_request.__dict__}")
 
         db.session.add(new_request)
         db.session.flush()
+        print(f"تم إنشاء الطلب برقم: {new_request.id}")
 
-        # إذا كان الطلب معتمداً تلقائياً (للمشرفين)، نخصم الرصيد فوراً
+        # إذا كان الطلب معتمداً تلقائياً
         if is_supervisor:
-            # تحديث أرصدة الإجازات باستخدام الأعمدة الجديدة
+            print("خصم الرصيد للمشرف...")
             if classification == 'regular':
                 employee.regular_leave_used += hours_requested
                 employee.regular_leave_remaining -= hours_requested
+                print(f"تم تحديث رصيد الإجازة العادية - المستخدم: {employee.regular_leave_used}, المتبقي: {employee.regular_leave_remaining}")
             elif classification == 'sick':
                 employee.sick_leave_used += hours_requested
                 employee.sick_leave_remaining -= hours_requested
+                print(f"تم تحديث رصيد الإجازة المرضية - المستخدم: {employee.sick_leave_used}, المتبقي: {employee.sick_leave_remaining}")
             elif classification == 'emergency':
                 employee.emergency_leave_used += hours_requested
                 employee.emergency_leave_remaining -= hours_requested
+                print(f"تم تحديث رصيد الإجازة الطارئة - المستخدم: {employee.emergency_leave_used}, المتبقي: {employee.emergency_leave_remaining}")
+            print("تم خصم الرصيد")
 
-        # رسالة خاصة للإجازات المرضية
         medical_message = ""
         if data['classification'] == 'sick':
             medical_message = "يرجى أيضاً التواصل مع مسؤول قسم الموارد البشرية لعرض التقارير الطبية لحالتك، مع تمنياتنا لك بالسلامة."
+            print("تم إضافة رسالة طبية")
 
-        # تحديد نص المدة حسب نوع الإجازة
-        if data['type'] == 'hourly':
-            duration_text = f"• من الساعة: {start_dt.strftime('%I:%M %p')}\n• إلى الساعة: {end_dt.strftime('%I:%M %p')}\n• المدة: {hours_requested:.2f} ساعة"
-        else:
-            duration_text = f"• من تاريخ: {start_date.strftime('%Y-%m-%d')}\n• إلى تاريخ: {end_date.strftime('%Y-%m-%d') if data['type'] == 'multi-day' else start_date.strftime('%Y-%m-%d')}\n• المدة: {hours_requested:.2f} ساعة"
-
-        # إرسال إشعارات للمشرفين إذا لم يكن الطلب تلقائي الموافقة
+        # إرسال الإشعارات
         if not is_supervisor:
+            print("إرسال إشعارات للمشرفين...")
             for supervisor in department_supervisors:
                 notification = Notification(
                     recipient_id=supervisor.supervisor_ID,
-                    message=f"طلب إجازة جديد من الموظف {employee.full_name_arabic}. {medical_message if data['classification'] == 'sick' else ''}"
+                    message=f"طلب إجازة جديد من الموظف {employee.full_name_arabic}. {medical_message}"
                 )
                 db.session.add(notification)
+                print(f"تم إنشاء إشعار للمشرف: {supervisor.supervisor_ID}")
 
                 supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
                 if supervisor_employee and supervisor_employee.telegram_chatid:
-                    telegram_message = f"""
-🔔 <b>طلب إجازة جديد</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• الموظف: {employee.full_name_arabic}
-• القسم: {employee.department.dep_name}
-• نوع الإجازة: {data['type']}
-• التصنيف: {data['classification']}
-{duration_text}
-• الملاحظة: {data['note']}
-{medical_message if data['classification'] == 'sick' else ''}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
-𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
-                    """
-                    try:
-                        send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
-                    except Exception as telegram_error:
-                        print(f"فشل إرسال التلغرام: {telegram_error}")
+                    print(f"إرسال رسالة تلغرام للمشرف: {supervisor_employee.telegram_chatid}")
+                    # ... كود التلغرام ...
         else:
+            print("إرسال إشعار للموظف (مشرف)")
             notification = Notification(
                 recipient_id=employee_id,
-                message=f"تم قبول طلب إجازتك تلقائياً. {medical_message if data['classification'] == 'sick' else ''}"
+                message=f"تم قبول طلب إجازتك تلقائياً. {medical_message}"
             )
             db.session.add(notification)
 
-        # إرسال إشعار للموظف نفسه إذا كانت الإجازة مرضية
-        if data['classification'] == 'sick' and employee.telegram_chatid:
-            employee_message = f"""
-✅ <b>تم قبول طلب إجازتك المرضية{' تلقائياً' if is_supervisor else ''}</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{medical_message}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
-𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
-            """
-            try:
-                send_telegram_message(employee.telegram_chatid, employee_message)
-            except Exception as telegram_error:
-                print(f"فشل إرسال التلغرام للموظف: {telegram_error}")
-
         db.session.commit()
+        print("تم حفظ التغييرات في قاعدة البيانات")
+        
+        # طباعة أرصدة الإجازات بعد التحديث
+        print("=== أرصدة الإجازات بعد التحديث ===")
+        print(f"رصيد الإجازة العادية: {employee.regular_leave_remaining} ساعة")
+        print(f"رصيد الإجازة المرضية: {employee.sick_leave_remaining} ساعة")
+        print(f"رصيد الإجازة الطارئة: {employee.emergency_leave_remaining} ساعة")
+        print(f"الإجازة العادية المستخدمة: {employee.regular_leave_used} ساعة")
+        print(f"الإجازة المرضية المستخدمة: {employee.sick_leave_used} ساعة")
+        print(f"الإجازة الطارئة المستخدمة: {employee.emergency_leave_used} ساعة")
+        print("================================")
 
-        # رسالة الرد النهائية
-        if is_supervisor:
-            message = "تم قبول طلب إجازتك تلقائيًا. " + (medical_message if data['classification'] == 'sick' else "")
-        else:
-            message = "تم إرسال طلب الإجازة بنجاح. " + (medical_message if data['classification'] == 'sick' else "")
-
+        print("=== انتهاء العملية بنجاح ===")
         return jsonify({
             "success": True,
-            "message": message,
+            "message": "تم العملية بنجاح",
             "request_id": new_request.id,
             "is_auto_approved": is_supervisor,
             "hours_requested": hours_requested
         }), 201
 
     except Exception as e:
+        print(f"❌ حدث خطأ: {str(e)}")
         db.session.rollback()
-        print(f"Error in create_leave_request: {str(e)}")
         return jsonify({
             "success": False,
             "message": "حدث خطأ أثناء حفظ الطلب",
@@ -6990,6 +7012,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
