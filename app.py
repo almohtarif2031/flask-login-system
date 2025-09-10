@@ -6330,6 +6330,9 @@ def handle_supervisor_request(request_type, request_id, action):
     if employee.department_id != supervisor.department_id:
         return jsonify({"message": "غير مصرح بتعديل هذا الطلب"}), 403
 
+    # حفظ الحالة القديمة للطلب (للتأكد من التغيير)
+    old_status = request_record.status
+
     # تحديث حالة الطلب
     if request_type == 'delay':
         if action == 'approve':
@@ -6338,6 +6341,41 @@ def handle_supervisor_request(request_type, request_id, action):
             request_record.status = 'Unjustified'
     else:
         request_record.status = 'approved' if action == 'approve' else 'rejected'
+
+    # معالجة أرصدة الإجازات في حالة طلبات الإجازة
+    if request_type == 'leave':
+        classification = request_record.classification
+        hours_requested = request_record.hours_requested
+        
+        # تحديد الأعمدة المناسبة بناءً على نوع الإجازة
+        used_attr = f"{classification}_leave_used"
+        remaining_attr = f"{classification}_leave_remaining"
+        total_attr = f"{classification}_leave_total"
+        old_balance_attr = f"{classification}_leave_hours"  # للحفاظ على التوافق
+        
+        if action == 'approve' and old_status != 'approved':
+            # الموافقة على طلب إجازة - نخصم من الرصيد
+            # التحقق أولاً من أن الرصيد كافي
+            current_balance = getattr(employee, remaining_attr, 0)
+            if hours_requested > current_balance:
+                return jsonify({
+                    "message": "رصيد الإجازة غير كافي للموافقة على هذا الطلب",
+                    "requested": hours_requested,
+                    "available": current_balance
+                }), 400
+            
+            # زيادة الساعات المستخدمة
+            setattr(employee, used_attr, getattr(employee, used_attr, 0) + hours_requested)
+            # تقليل الرصيد المتبقي
+            setattr(employee, remaining_attr, getattr(employee, remaining_attr, 0) - hours_requested)
+            # تحديث الحقول القديمة للحفاظ على التوافق
+            setattr(employee, old_balance_attr, getattr(employee, old_balance_attr, 0) - hours_requested)
+            
+        elif action == 'reject' and old_status == 'approved':
+            # رفض طلب إجازة كان معتمداً سابقاً - نرجع الرصيد
+            setattr(employee, used_attr, getattr(employee, used_attr, 0) - hours_requested)
+            setattr(employee, remaining_attr, getattr(employee, remaining_attr, 0) + hours_requested)
+            setattr(employee, old_balance_attr, getattr(employee, old_balance_attr, 0) + hours_requested)
 
     if request_type == 'overtime' and action == 'approve':
         overtime_hours = request_record.add_attendance_minutes / 60
@@ -6924,6 +6962,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
