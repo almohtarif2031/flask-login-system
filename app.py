@@ -2230,19 +2230,40 @@ def update_employee(employee_id):
         employee.weekly_day_off = data.get('weekly_day_off', employee.weekly_day_off)
 
         # -------------------------
-        # تحديث ساعات الإجازة ونسخها إلى الإجمالي
+        # تحديث ساعات الإجازة - الحل الجديد
         # -------------------------
+        def update_leave_balances(leave_type, new_hours):
+            # الحصول على القيم الحالية
+            current_total = getattr(employee, f"{leave_type}_leave_total")
+            current_used = getattr(employee, f"{leave_type}_leave_used")
+            
+            # حساب الفرق بين القيمة الجديدة والقديمة
+            diff = new_hours - current_total
+            
+            # تحديث القيم
+            setattr(employee, f"{leave_type}_leave_total", new_hours)
+            
+            # إذا زادت الساعات الإجمالية، نزيد الساعات المتاحة
+            if diff > 0:
+                new_available = getattr(employee, f"{leave_type}_leave_hours") + diff
+                setattr(employee, f"{leave_type}_leave_hours", new_available)
+                setattr(employee, f"{leave_type}_leave_remaining", new_available)
+            # إذا نقصت الساعات الإجمالية، ننقص الساعات المتاحة (ولكن لا نسمح بالقيم السالبة)
+            elif diff < 0:
+                current_available = getattr(employee, f"{leave_type}_leave_hours")
+                new_available = max(0, current_available + diff)  # + diff لأن diff سالب
+                setattr(employee, f"{leave_type}_leave_hours", new_available)
+                setattr(employee, f"{leave_type}_leave_remaining", new_available)
+        
+        # تطبيق التحديث على أنواع الإجازات
         if 'regular_leave_hours' in data:
-            employee.regular_leave_hours = data['regular_leave_hours']
-            employee.regular_leave_total = data['regular_leave_hours']  # نسخ إلى الإجمالي
-
+            update_leave_balances('regular', float(data['regular_leave_hours']))
+        
         if 'sick_leave_hours' in data:
-            employee.sick_leave_hours = data['sick_leave_hours']
-            employee.sick_leave_total = data['sick_leave_hours']  # نسخ إلى الإجمالي
-
+            update_leave_balances('sick', float(data['sick_leave_hours']))
+        
         if 'emergency_leave_hours' in data:
-            employee.emergency_leave_hours = data['emergency_leave_hours']
-            employee.emergency_leave_total = data['emergency_leave_hours']  # نسخ إلى الإجمالي
+            update_leave_balances('emergency', float(data['emergency_leave_hours']))
 
         # -------------------------
         # تحويل وتحديث التواريخ والأوقات
@@ -2329,6 +2350,12 @@ def update_employee(employee_id):
                 "regular_leave_total": employee.regular_leave_total,
                 "sick_leave_total": employee.sick_leave_total,
                 "emergency_leave_total": employee.emergency_leave_total,
+                "regular_leave_used": employee.regular_leave_used,
+                "sick_leave_used": employee.sick_leave_used,
+                "emergency_leave_used": employee.emergency_leave_used,
+                "regular_leave_remaining": employee.regular_leave_remaining,
+                "sick_leave_remaining": employee.sick_leave_remaining,
+                "emergency_leave_remaining": employee.emergency_leave_remaining,
                 # الحقول الجديدة
                 "study_major": employee.study_major,
                 "governorate": employee.governorate,
@@ -6963,6 +6990,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
