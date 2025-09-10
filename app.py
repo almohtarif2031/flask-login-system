@@ -151,6 +151,18 @@ class Employee(db.Model):
     regular_leave_hours = Column(db.Float, default=0.0)
     sick_leave_hours = Column(db.Float, default=0.0)
     emergency_leave_hours = Column(db.Float, default=0.0)
+         ✅ الإضافات الجديدة المقترحة للإجازات (أضفها هنا)
+    regular_leave_total = db.Column(db.Float, default=0.0)  # الإجمالي (50 ساعة)
+    regular_leave_used = db.Column(db.Float, default=0.0)    # المستخدم
+    regular_leave_remaining = db.Column(db.Float, default=0.0) # المتبقي
+
+    sick_leave_total = db.Column(db.Float, default=0.0)
+    sick_leave_used = db.Column(db.Float, default=0.0)
+    sick_leave_remaining = db.Column(db.Float, default=0.0)
+
+    emergency_leave_total = db.Column(db.Float, default=0.0)
+    emergency_leave_used = db.Column(db.Float, default=0.0)
+    emergency_leave_remaining = db.Column(db.Float, default=0.0)
     department = db.relationship("Department", back_populates="employees")
     leave_requests = db.relationship("LeaveRequest", back_populates="employee", cascade="all, delete-orphan")
     attendance_records = db.relationship("AttendanceRecord", back_populates="employee", cascade="all, delete-orphan")
@@ -1770,6 +1782,13 @@ def get_my_leave_requests():
         results.append(leave_data)
     
     return jsonify(results)
+from flask import Flask, request, jsonify
+from datetime import datetime
+from sqlalchemy import distinct
+import json, traceback
+import cloudinary.uploader
+from models import db, Employee, EmployeeCustomField, SalaryComponent
+
 @app.route('/api/employees', methods=['POST'])
 def add_employee():
     try:
@@ -1794,42 +1813,22 @@ def add_employee():
             return jsonify({'errors': errors}), 400
         
         # التحقق من تكرار البريد الإلكتروني
-        existing_employee_email = Employee.query.filter_by(email=data.get('email')).first()
-        if existing_employee_email:
+        if Employee.query.filter_by(email=data.get('email')).first():
             return jsonify({'errors': {'email': 'هذا البريد الإلكتروني مستخدم بالفعل.'}}), 400
         
         # التحقق من تكرار الرقم الوظيفي
-        existing_employee_number = Employee.query.filter_by(employee_number=data.get('employee_number')).first()
-        if existing_employee_number:
-            return jsonify({
-                'errors': {
-                    'employee_number': 'هذا الرقم الوظيفي مستخدم بالفعل، يرجى استخدام رقم آخر.'
-                }
-            }), 400
+        if Employee.query.filter_by(employee_number=data.get('employee_number')).first():
+            return jsonify({'errors': {'employee_number': 'هذا الرقم الوظيفي مستخدم بالفعل، يرجى استخدام رقم آخر.'}}), 400
         
         # التحقق من تكرار الرقم الوطني
-        existing_national_id = Employee.query.filter_by(national_id=data.get('national_id')).first()
-        if existing_national_id:
-            return jsonify({
-                'errors': {
-                    'national_id': 'هذا الرقم الوطني مستخدم بالفعل.'
-                }
-            }), 400
+        if Employee.query.filter_by(national_id=data.get('national_id')).first():
+            return jsonify({'errors': {'national_id': 'هذا الرقم الوطني مستخدم بالفعل.'}}), 400
         
         # التحقق من وجود مشرف آخر في القسم
         if data.get('role') == 'مشرف' and data.get('department_id'):
-            existing_supervisor = Employee.query.filter(
-                Employee.department_id == data.get('department_id'),
-                Employee.role == 'مشرف',
-                Employee.id != None
-            ).first()
-            
-            if existing_supervisor:
-                return jsonify({
-                    'errors': {
-                        'role': 'تم رفض العملية: لا يمكن وجود أكثر من مشرف في نفس القسم.'
-                    }
-                }), 400
+            if Employee.query.filter(Employee.department_id == data.get('department_id'),
+                                     Employee.role == 'مشرف').first():
+                return jsonify({'errors': {'role': 'تم رفض العملية: لا يمكن وجود أكثر من مشرف في نفس القسم.'}}), 400
         
         # رفع الصورة إن وجدت
         image_url = None
@@ -1837,14 +1836,14 @@ def add_employee():
             result = cloudinary.uploader.upload(profile_image)
             image_url = result["secure_url"]
         
-        # دوال المساعدة للتحويل
+        # دوال مساعدة
         def parse_int(value):
             try:
                 return int(value)
             except (ValueError, TypeError):
                 return 0
         
-        def parse_float_or_zero(value):
+        def parse_float(value):
             try:
                 return float(value)
             except (ValueError, TypeError):
@@ -1862,9 +1861,13 @@ def add_employee():
             except ValueError:
                 return None
         
-        # إنشاء سجل الموظف مع جميع الحقول
+        # تعيين قيم الإجازات الافتراضية
+        regular_hours = parse_float(data.get('regular_leave_hours'))
+        sick_hours = parse_float(data.get('sick_leave_hours'))
+        emergency_hours = parse_float(data.get('emergency_leave_hours'))
+        
+        # إنشاء سجل الموظف
         new_employee = Employee(
-            # الحقول الأساسية
             full_name_arabic=data.get('full_name_arabic'),
             full_name_english=data.get('full_name_english'),
             employee_number=data.get('employee_number'),
@@ -1877,8 +1880,6 @@ def add_employee():
             position=data.get('position'),
             position_english=data.get('position_english'),
             role=data.get('role'),
-            
-            # الحقول المالية والإدارية
             bank_account=data.get('bank_account'),
             address=data.get('address'),
             weekly_day_off=data.get('weekly_day_off'),
@@ -1886,8 +1887,6 @@ def add_employee():
             work_end_time=parse_time(data.get('work_end_time')),
             date_of_joining=parse_date(data.get('date_of_joining')),
             notes=data.get('notes'),
-            
-            # الحقول الجديدة المطلوبة
             study_major=data.get('study_major'),
             governorate=data.get('governorate'),
             relative_phone=data.get('relative_phone'),
@@ -1906,58 +1905,60 @@ def add_employee():
             external_privileges=data.get('external_privileges'),
             special_leave_record=data.get('special_leave_record'),
             drive_folder_link=data.get('drive_folder_link'),
-            
-            # حالات الإجازات
             status=data.get('status', 'off'),
             is_leave=data.get('is_leave', 'off'),
             is_vacation=data.get('is_vacation', 'off'),
             is_weekly_day_off=data.get('is_weekly_day_off', 'off'),
-            
-            # ساعات الإجازات
-            regular_leave_hours=parse_float_or_zero(data.get('regular_leave_hours')),
-            sick_leave_hours=parse_float_or_zero(data.get('sick_leave_hours')),
-            emergency_leave_hours=parse_float_or_zero(data.get('emergency_leave_hours'))
+            regular_leave_hours=regular_hours,
+            sick_leave_hours=sick_hours,
+            emergency_leave_hours=emergency_hours,
+            regular_leave_total=regular_hours,
+            regular_leave_used=0.0,
+            regular_leave_remaining=regular_hours,
+            sick_leave_total=sick_hours,
+            sick_leave_used=0.0,
+            sick_leave_remaining=sick_hours,
+            emergency_leave_total=emergency_hours,
+            emergency_leave_used=0.0,
+            emergency_leave_remaining=emergency_hours
         )
         
         db.session.add(new_employee)
         db.session.commit()
         
-        # إضافة الحقول المخصصة للموظف بعد إنشاءه
+        # إضافة الحقول المخصصة
         field_names = db.session.query(distinct(EmployeeCustomField.field_name)).all()
         for (field_name,) in field_names:
-            new_custom_field = EmployeeCustomField(
+            db.session.add(EmployeeCustomField(
                 employee_id=new_employee.id,
                 field_name=field_name,
-                field_value=''  # افتراضي
-            )
-            db.session.add(new_custom_field)
-        
+                field_value=''
+            ))
         db.session.commit()
         
-        # إضافة مكونات الراتب إذا وجدت
+        # إضافة مكونات الراتب
         salary_components = data.get('salary_components')
         if salary_components:
             try:
                 salary_data = json.loads(salary_components)
-                new_salary = SalaryComponent(
+                db.session.add(SalaryComponent(
                     employee_id=new_employee.id,
                     base_salary=parse_int(salary_data.get('base_salary')),
-                    hour_salary=parse_float_or_zero(salary_data.get('hour_salary')),
-                    overtime_rate=parse_float_or_zero(salary_data.get('overtime_rate')),
-                    holiday_overtime_rate=parse_float_or_zero(salary_data.get('holiday_overtime_rate')),
-                    internet_allowance=parse_float_or_zero(salary_data.get('internet_allowance')),
-                    transport_allowance=parse_float_or_zero(salary_data.get('transport_allowance')),
+                    hour_salary=parse_float(salary_data.get('hour_salary')),
+                    overtime_rate=parse_float(salary_data.get('overtime_rate')),
+                    holiday_overtime_rate=parse_float(salary_data.get('holiday_overtime_rate')),
+                    internet_allowance=parse_float(salary_data.get('internet_allowance')),
+                    transport_allowance=parse_float(salary_data.get('transport_allowance')),
                     depreciation_allowance=parse_int(salary_data.get('depreciation_allowance')),
                     administrative_allowance=parse_int(salary_data.get('administrative_allowance')),
                     administrative_deduction=parse_int(salary_data.get('administrative_deduction'))
-                )
-                db.session.add(new_salary)
+                ))
                 db.session.commit()
             except Exception as e:
                 print(f"❌ خطأ في إضافة مكونات الراتب: {str(e)}")
         
         return jsonify({'message': 'تمت إضافة الموظف بنجاح'}), 201
-        
+    
     except Exception as e:
         print("🚨 خطأ أثناء إضافة الموظف:")
         traceback.print_exc()
@@ -2159,14 +2160,18 @@ def update_employee(employee_id):
         if not employee:
             return jsonify({'message': 'Employee not found'}), 404
         
+        # -------------------------
         # تحديث الحقول الأساسية
+        # -------------------------
         employee.full_name_arabic = data.get('full_name_arabic', employee.full_name_arabic)
         employee.full_name_english = data.get('full_name_english', employee.full_name_english)
         employee.employee_number = data.get('employee_number', employee.employee_number)
         employee.email = data.get('email', employee.email)
         employee.password = data.get('password', employee.password)
 
-        # ✅ الحقول الجديدة
+        # -------------------------
+        # الحقول الجديدة
+        # -------------------------
         employee.study_major = data.get('study_major', employee.study_major)
         employee.governorate = data.get('governorate', employee.governorate)
         employee.relative_phone = data.get('relative_phone', employee.relative_phone)
@@ -2187,10 +2192,11 @@ def update_employee(employee_id):
         employee.special_leave_record = data.get('special_leave_record', employee.special_leave_record)
         employee.drive_folder_link = data.get('drive_folder_link', employee.drive_folder_link)
 
+        # -------------------------
         # تحديث أو رفع صورة الموظف
+        # -------------------------
         if 'profile_image' in data and data['profile_image']:
             new_image = data['profile_image']
-
             if new_image.startswith('data:image'):
                 try:
                     img_data = new_image.split(',')[1] if ',' in new_image else new_image
@@ -2201,11 +2207,12 @@ def update_employee(employee_id):
                     employee.profile_image = result['secure_url']
                 except Exception as e:
                     print(f"Error processing image: {e}")
-
             elif new_image.startswith('http'):
                 employee.profile_image = new_image
 
+        # -------------------------
         # الحقول الأخرى
+        # -------------------------
         employee.telegram_chatid = data.get('telegram_chatid', employee.telegram_chatid)
         employee.phone = data.get('phone', employee.phone)
         employee.position = data.get('position', employee.position)
@@ -2231,11 +2238,25 @@ def update_employee(employee_id):
         employee.address = data.get('address', employee.address)
         employee.notes = data.get('notes', employee.notes)
         employee.weekly_day_off = data.get('weekly_day_off', employee.weekly_day_off)
-        employee.regular_leave_hours = data.get('regular_leave_hours', employee.regular_leave_hours)
-        employee.sick_leave_hours = data.get('sick_leave_hours', employee.sick_leave_hours)
-        employee.emergency_leave_hours = data.get('emergency_leave_hours', employee.emergency_leave_hours)
-        
+
+        # -------------------------
+        # تحديث ساعات الإجازة ونسخها إلى الإجمالي
+        # -------------------------
+        if 'regular_leave_hours' in data:
+            employee.regular_leave_hours = data['regular_leave_hours']
+            employee.regular_leave_total = data['regular_leave_hours']  # نسخ إلى الإجمالي
+
+        if 'sick_leave_hours' in data:
+            employee.sick_leave_hours = data['sick_leave_hours']
+            employee.sick_leave_total = data['sick_leave_hours']  # نسخ إلى الإجمالي
+
+        if 'emergency_leave_hours' in data:
+            employee.emergency_leave_hours = data['emergency_leave_hours']
+            employee.emergency_leave_total = data['emergency_leave_hours']  # نسخ إلى الإجمالي
+
+        # -------------------------
         # تحويل وتحديث التواريخ والأوقات
+        # -------------------------
         if 'work_start_time' in data:
             employee.work_start_time = time.fromisoformat(data['work_start_time'])
         if 'work_end_time' in data:
@@ -2247,30 +2268,28 @@ def update_employee(employee_id):
         if 'date_of_birth' in data and data['date_of_birth']:
             employee.date_of_birth = date.fromisoformat(data['date_of_birth'])
 
+        # -------------------------
         # تحديث أو إنشاء بيانات الراتب
+        # -------------------------
         salary_data = data.get('salary_components')
         if salary_data:
             salary_component = SalaryComponent.query.filter_by(employee_id=employee_id).first()
-            
             if not salary_component:
                 salary_component = SalaryComponent(employee_id=employee_id)
                 db.session.add(salary_component)
 
-            # الراتب الأساسي
             base_salary = salary_data.get('base_salary', salary_component.base_salary or 0.0)
             salary_component.base_salary = float(base_salary)
 
-            # الأجر بالساعة: إذا انبعت Null نحسبه أو نخليه صفر
             hour_salary = salary_data.get('hour_salary')
             if hour_salary is None:
                 try:
-                    salary_component.hour_salary = float(base_salary) / (8 * 26)  # مثال: تقسيم على 8 ساعات * 26 يوم
+                    salary_component.hour_salary = float(base_salary) / (8 * 26)
                 except ZeroDivisionError:
                     salary_component.hour_salary = 0.0
             else:
                 salary_component.hour_salary = float(hour_salary)
 
-            # بقية الحقول
             salary_component.overtime_rate = salary_data.get('overtime_rate', salary_component.overtime_rate or 0.0)
             salary_component.holiday_overtime_rate = salary_data.get('holiday_overtime_rate', salary_component.holiday_overtime_rate or 0.0)
             salary_component.internet_allowance = salary_data.get('internet_allowance', salary_component.internet_allowance or 0.0)
@@ -2279,20 +2298,15 @@ def update_employee(employee_id):
             salary_component.administrative_allowance = salary_data.get('administrative_allowance', salary_component.administrative_allowance or 0.0)
             salary_component.administrative_deduction = salary_data.get('administrative_deduction', salary_component.administrative_deduction or 0.0)
 
-        
-        # تحديث الحقول الديناميكية (ممكن إضافتها لاحقًا)
-        if 'allowances' in data:
-            pass
-        if 'deductions' in data:
-            pass
-        if 'other_groups' in data:
-            pass
-
-        # الحفظ في قاعدة البيانات
+        # -------------------------
+        # حفظ التعديلات
+        # -------------------------
         db.session.commit()
         db.session.refresh(employee, ['department'])
 
-        # تحديث بيانات الجلسة إذا كان المستخدم الحالي هو نفسه الذي تم تعديله
+        # -------------------------
+        # تحديث الجلسة إذا كان المستخدم الحالي هو نفسه
+        # -------------------------
         if 'employee' in session and session['employee']['id'] == employee_id:
             session['employee'].update({
                 "full_name_arabic": employee.full_name_arabic,
@@ -2322,7 +2336,10 @@ def update_employee(employee_id):
                 "regular_leave_hours": employee.regular_leave_hours,
                 "sick_leave_hours": employee.sick_leave_hours,
                 "emergency_leave_hours": employee.emergency_leave_hours,
-                # ✅ الحقول الجديدة
+                "regular_leave_total": employee.regular_leave_total,
+                "sick_leave_total": employee.sick_leave_total,
+                "emergency_leave_total": employee.emergency_leave_total,
+                # الحقول الجديدة
                 "study_major": employee.study_major,
                 "governorate": employee.governorate,
                 "relative_phone": employee.relative_phone,
@@ -2346,7 +2363,7 @@ def update_employee(employee_id):
             session.modified = True
 
         return jsonify({'message': 'Employee updated successfully'}), 200
-    
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': str(e)}), 500
@@ -6958,6 +6975,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
