@@ -1781,12 +1781,6 @@ def get_my_leave_requests():
         results.append(leave_data)
     
     return jsonify(results)
-from flask import Flask, request, jsonify
-from datetime import datetime
-from sqlalchemy import distinct
-import json, traceback
-import cloudinary.uploader
-from models import db, Employee, EmployeeCustomField, SalaryComponent
 
 @app.route('/api/employees', methods=['POST'])
 def add_employee():
@@ -6974,6 +6968,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
