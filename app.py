@@ -4693,6 +4693,40 @@ def delete_compensation_leave_request(request_id):
             "message": "حدث خطأ أثناء حذف الطلب",
             "error": str(e)
         }), 500
+import requests
+import os
+from flask import jsonify, request, session
+from datetime import datetime, timedelta
+import pytz
+from models import Employee, Supervisor, LeaveRequest, Notification, db
+
+# دالة مساعدة لإرسال رسائل التلغرام
+def send_telegram_message(chat_id, message):
+    """إرسال رسالة إلى التلغرام"""
+    try:
+        bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+        if not bot_token:
+            print("❌ لم يتم تعيين TELEGRAM_BOT_TOKEN")
+            return False
+            
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {
+            'chat_id': chat_id,
+            'text': message,
+            'parse_mode': 'HTML'
+        }
+        
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            print(f"✓ تم إرسال رسالة التلغرام إلى {chat_id}")
+            return True
+        else:
+            print(f"❌ فشل إرسال رسالة التلغرام: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ خطأ في إرسال رسالة التلغرام: {str(e)}")
+        return False
+
 @app.route('/api/leave-requests', methods=['POST'])
 def create_leave_request():
     try:
@@ -4805,6 +4839,11 @@ def create_leave_request():
         classification = data['classification']
         print(f"تصنيف الإجازة: {classification}")
         
+        # معالجة التصنيف 'normal' كمرادف لـ 'regular'
+        if classification == 'normal':
+            classification = 'regular'
+            print(f"تم تحويل التصنيف من 'normal' إلى 'regular'")
+
         if classification == 'regular':
             current_balance = employee.regular_leave_remaining
             print(f"الرصيد المتاح للإجازة العادية: {current_balance} ساعة")
@@ -4816,24 +4855,36 @@ def create_leave_request():
             print(f"الرصيد المتاح للإجازة الطارئة: {current_balance} ساعة")
         else:
             current_balance = 0
-            
-        print(f"الرصيد المتاح: {current_balance} ساعة, الساعات المطلوبة: {hours_requested} ساعة")
-        
-        if hours_requested > current_balance:
-            print("❌ رصيد غير كافي")
-            return jsonify({
-                "message": "رصيد الإجازة غير كافي",
-                "requested": hours_requested,
-                "available": current_balance
-            }), 400
+            print(f"❌ تصنيف غير معروف: {classification}")
 
+        # حساب مجموع ساعات الطلبات المعلقة لنفس التصنيف
+        pending_requests = LeaveRequest.query.filter_by(
+            employee_id=employee_id,
+            classification=classification,
+            status='pending'
+        ).all()
+        total_pending_hours = sum(req.hours_requested for req in pending_requests)
+
+        available_balance = current_balance - total_pending_hours
+
+        print(f"الرصيد المتاح (بعد خصم الطلبات المعلقة): {available_balance} ساعة, الساعات المطلوبة: {hours_requested} ساعة")
+
+        if hours_requested > available_balance:
+            print("❌ رصيد غير كافي (بعد احتساب الطلبات المعلقة)")
+            return jsonify({
+                "message": "رصيد الإجازة غير كافي عند احتساب الطلبات المعلقة",
+                "requested": hours_requested,
+                "available": available_balance,
+                "pending_requests": total_pending_hours
+            }), 400
+            
         # إنشاء سجل الإجازة
         new_request = LeaveRequest(
             timestamp=datetime.now(syria_tz),
             employee_id=employee_id,
             supervisor_id=department_supervisors[0].supervisor_ID,
             type=data['type'],
-            classification=data['classification'],
+            classification=classification,
             start_date=start_date,
             end_date=end_date if data['type'] == 'multi-day' else None,
             hours_requested=hours_requested,
@@ -4848,7 +4899,7 @@ def create_leave_request():
         db.session.flush()
         print(f"تم إنشاء الطلب برقم: {new_request.id}")
 
-        # إذا كان الطلب معتمداً تلقائياً
+        # إذا كان الطلب معتمداً تلقائياً (مشرف) نخصم الرصيد
         if is_supervisor:
             print("خصم الرصيد للمشرف...")
             if classification == 'regular':
@@ -4866,7 +4917,7 @@ def create_leave_request():
             print("تم خصم الرصيد")
 
         medical_message = ""
-        if data['classification'] == 'sick':
+        if classification == 'sick':
             medical_message = "يرجى أيضاً التواصل مع مسؤول قسم الموارد البشرية لعرض التقارير الطبية لحالتك، مع تمنياتنا لك بالسلامة."
             print("تم إضافة رسالة طبية")
 
@@ -4881,10 +4932,21 @@ def create_leave_request():
                 db.session.add(notification)
                 print(f"تم إنشاء إشعار للمشرف: {supervisor.supervisor_ID}")
 
+                # إرسال رسالة التلغرام للمشرف
                 supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
                 if supervisor_employee and supervisor_employee.telegram_chatid:
-                    print(f"إرسال رسالة تلغرام للمشرف: {supervisor_employee.telegram_chatid}")
-                    # ... كود التلغرام ...
+                    telegram_message = f"""
+📋 <b>طلب إجازة جديد</b>
+
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+📅 <b>التصنيف:</b> {classification}
+⏰ <b>النوع:</b> {data['type']}
+🕒 <b>المدة:</b> {hours_requested} ساعة
+📝 <b>ملاحظة:</b> {data['note']}
+
+{medical_message if medical_message else ''}
+                    """
+                    send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
         else:
             print("إرسال إشعار للموظف (مشرف)")
             notification = Notification(
@@ -4892,6 +4954,20 @@ def create_leave_request():
                 message=f"تم قبول طلب إجازتك تلقائياً. {medical_message}"
             )
             db.session.add(notification)
+            
+            # إرسال رسالة التلغرام للموظف (المشرف)
+            if employee.telegram_chatid:
+                telegram_message = f"""
+✅ <b>تم قبول طلب إجازتك تلقائياً</b>
+
+📅 <b>التصنيف:</b> {classification}
+⏰ <b>النوع:</b> {data['type']}
+🕒 <b>المدة:</b> {hours_requested} ساعة
+📝 <b>ملاحظة:</b> {data['note']}
+
+{medical_message if medical_message else ''}
+                """
+                send_telegram_message(employee.telegram_chatid, telegram_message)
 
         db.session.commit()
         print("تم حفظ التغييرات في قاعدة البيانات")
@@ -4907,9 +4983,16 @@ def create_leave_request():
         print("================================")
 
         print("=== انتهاء العملية بنجاح ===")
+        
+        # رسالة الرد النهائية
+        if is_supervisor:
+            message = "تم قبول طلب إجازتك تلقائيًا. " + (medical_message if classification == 'sick' else "")
+        else:
+            message = "تم إرسال طلب الإجازة بنجاح. " + (medical_message if classification == 'sick' else "")
+
         return jsonify({
             "success": True,
-            "message": "تم العملية بنجاح",
+            "message": message,
             "request_id": new_request.id,
             "is_auto_approved": is_supervisor,
             "hours_requested": hours_requested
@@ -7012,6 +7095,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
