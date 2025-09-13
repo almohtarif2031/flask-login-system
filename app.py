@@ -6497,6 +6497,137 @@ def handle_supervisor_request(request_type, request_id, action):
     db.session.add(notification)
     db.session.commit()
 
+    # إرسال رسالة تيليغرام إلى الموظف
+    try:
+        if employee.telegram_chatid:
+            # تنسيق الرسالة حسب نوع الطلب
+            if request_type == 'leave':
+                # تحويل النوع والتصنيف إلى العربية
+                arabic_type = leave_type_arabic.get(request_record.type, request_record.type)
+                arabic_classification = classification_arabic.get(request_record.classification, request_record.classification)
+                
+                # تحديد تفاصيل العرض حسب نوع الإجازة
+                if request_record.type == 'hourly':
+                    # تحويل الوقت إلى تنسيق مناسب
+                    start_time_str = request_record.start_time.strftime('%I:%M %p') if request_record.start_time else "غير محدد"
+                    end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
+                    
+                    details = f"""
+📅 <b>التاريخ:</b> {request_record.start_date}
+⏰ <b>الوقت:</b> من {start_time_str} إلى {end_time_str}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {request_record.note}
+                    """
+                elif request_record.type == 'daily':
+                    details = f"""
+📅 <b>التاريخ:</b> {request_record.start_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {request_record.note}
+                    """
+                else:
+                    details = f"""
+📅 <b>من تاريخ:</b> {request_record.start_date}
+📅 <b>إلى تاريخ:</b> {request_record.end_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {request_record.note}
+                    """
+                    
+                employee_message = f"""
+{'✅' if action == 'approve' else '❌'} <b>تم {'الموافقة على' if action == 'approve' else 'رفض'} طلب الإجازة</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+{details}
+🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                
+            elif request_type == 'overtime':
+                # تحويل الدقائق إلى ساعات ودقائق
+                hours = request_record.add_attendance_minutes // 60
+                minutes = request_record.add_attendance_minutes % 60
+                time_display = f"{hours} ساعة و {minutes} دقيقة" if hours > 0 else f"{minutes} دقيقة"
+                start_time_str = request_record.start_time.strftime('%I:%M %p') if request_record.start_time else "غير محدد"
+                end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
+                
+                employee_message = f"""
+{'✅' if action == 'approve' else '❌'} <b>تم {'الموافقة على' if action == 'approve' else 'رفض'} طلب العمل الإضافي</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+📅 <b>التاريخ:</b> {request_record.date}
+⏰ <b>الوقت:</b> от {start_time_str} إلى {end_time_str}
+⏱️ <b>المدة:</b> {time_display}
+📝 <b>السبب:</b> {request_record.notes}
+🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                
+            elif request_type == 'compensation':
+                # التحقق من وجود البيانات قبل استخدامها
+                date_str = request_record.date.strftime('%Y-%m-%d') if request_record.date else "غير محدد"
+                
+                start_time_str = "غير محدد"
+                if request_record.start_time:
+                    if hasattr(request_record.start_time, 'strftime'):
+                        start_time_str = request_record.start_time.strftime('%I:%M %p')
+                    else:
+                        start_time_str = str(request_record.start_time)
+                
+                end_time_str = "غير محدد"
+                if request_record.end_time:
+                    if hasattr(request_record.end_time, 'strftime'):
+                        end_time_str = request_record.end_time.strftime('%I:%M %p')
+                    else:
+                        end_time_str = str(request_record.end_time)
+                
+                hours = request_record.hours_requested if request_record.hours_requested else 0
+                note = request_record.note if request_record.note else "لا يوجد"
+                
+                employee_message = f"""
+{'✅' if action == 'approve' else '❌'} <b>تم {'الموافقة على' if action == 'approve' else 'رفض'} طلب التعويض</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+📅 <b>التاريخ:</b> {date_str}
+⏰ <b>من وقت:</b> {start_time_str}
+⏰ <b>إلى وقت:</b> {end_time_str}
+⏱️ <b>المدة:</b> {hours:.2f} ساعة
+📝 <b>السبب:</b> {note}
+🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                
+            elif request_type == 'delay':
+                # تحويل دقائق التأخير إلى تنسيق أفضل
+                delay_hours = request_record.minutes_delayed // 60
+                delay_minutes = request_record.minutes_delayed % 60
+                delay_display = f"{delay_hours} ساعة و {delay_minutes} دقيقة" if delay_hours > 0 else f"{delay_minutes} دقيقة"
+                from_time_str = request_record.from_timestamp.strftime('%I:%M %p') if request_record.from_timestamp else "غير محدد"
+                to_time_str = request_record.to_timestamp.strftime('%I:%M %p') if request_record.to_timestamp else "غير محدد"
+
+                employee_message = f"""
+{'✅' if action == 'approve' else '❌'} <b>تم {'تبرير' if action == 'approve' else 'رفض تبرير'} التأخير</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+📅 <b>التاريخ:</b> {request_record.date}
+⏰ <b>وقت التأخير:</b> من {from_time_str} إلى {to_time_str}
+⏱️ <b>مدة التأخير:</b> {delay_display}
+📝 <b>السبب/التبرير:</b> {request_record.delay_note if request_record.delay_note else "لا يوجد"}
+🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+            
+            # إرسال الرسالة إلى الموظف عبر التلغرام
+            send_telegram_message(employee.telegram_chatid, employee_message)
+            
+    except Exception as e:
+        print(f"فشل في إرسال الرسالة إلى الموظف عبر التلغرام: {str(e)}")
+        # يمكنك إضافة تسجيل الخطأ في قاعدة البيانات هنا إذا أردت
+
     # إرسال الطلب المعتمد إلى مجموعة التلغرام كأرشيف
     if action == 'approve':
         try:
@@ -6513,38 +6644,38 @@ def handle_supervisor_request(request_type, request_id, action):
                     end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
                     
                     details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• التاريخ: {request_record.start_date}
-• الوقت: من {start_time_str} إلى {end_time_str}
-• المدة: {request_record.hours_requested:.2f} ساعة
-• السبب: {request_record.note}
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>التاريخ:</b> {request_record.start_date}
+⏰ <b>الوقت:</b> من {start_time_str} إلى {end_time_str}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {request_record.note}
                     """
                 elif request_record.type == 'daily':
                     details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• التاريخ: {request_record.start_date}
-• المدة: {request_record.hours_requested:.2f} ساعة
-• السبب: {request_record.note}
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>التاريخ:</b> {request_record.start_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {request_record.note}
                     """
                 elif request_record.type == 'multi-day':
                     details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• من تاريخ: {request_record.start_date}
-• إلى تاريخ: {request_record.end_date}
-• المدة: {request_record.hours_requested:.2f} ساعة
-• السبب: {request_record.note}
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>من تاريخ:</b> {request_record.start_date}
+📅 <b>إلى تاريخ:</b> {request_record.end_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {request_record.note}
                     """
                 else:
                     details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• من تاريخ: {request_record.start_date}
-• إلى تاريخ: {request_record.end_date}
-• المدة: {request_record.hours_requested:.2f} ساعة
-• السبب: {request_record.note}
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>من تاريخ:</b> {request_record.start_date}
+📅 <b>إلى تاريخ:</b> {request_record.end_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {request_record.note}
                     """
             elif request_type == 'overtime':
                 # تحويل الدقائق إلى ساعات ودقائق
@@ -6554,10 +6685,10 @@ def handle_supervisor_request(request_type, request_id, action):
                 start_time_str = request_record.start_time.strftime('%I:%M %p') if request_record.start_time else "غير محدد"
                 end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
                 details = f"""
-• التاريخ: {request_record.date}
-• الوقت: من {start_time_str} إلى {end_time_str}
-• المدة: {time_display}
-• السبب: {request_record.notes}
+📅 <b>التاريخ:</b> {request_record.date}
+⏰ <b>الوقت:</b> من {start_time_str} إلى {end_time_str}
+⏱️ <b>المدة:</b> {time_display}
+📝 <b>السبب:</b> {request_record.notes}
                 """
             elif request_type == 'compensation':
                 # التحقق من وجود البيانات قبل استخدامها
@@ -6581,11 +6712,11 @@ def handle_supervisor_request(request_type, request_id, action):
                 note = request_record.note if request_record.note else "لا يوجد"
                 
                 details = f"""
-• التاريخ: {date_str} 
-• من وقت: {start_time_str}
-• إلى وقت: {end_time_str}
-• المدة: {hours:.2f} ساعة
-• السبب: {note}
+📅 <b>التاريخ:</b> {date_str}
+⏰ <b>من وقت:</b> {start_time_str}
+⏰ <b>إلى وقت:</b> {end_time_str}
+⏱️ <b>المدة:</b> {hours:.2f} ساعة
+📝 <b>السبب:</b> {note}
                 """
             elif request_type == 'delay':
                 # تحويل دقائق التأخير إلى تنسيق أفضل
@@ -6596,23 +6727,23 @@ def handle_supervisor_request(request_type, request_id, action):
                 to_time_str = request_record.to_timestamp.strftime('%I:%M %p') if request_record.to_timestamp else "غير محدد"
 
                 details = f"""
-• التاريخ: {request_record.date}
-• وقت التأخير: من {from_time_str} إلى {to_time_str}
-• مدة التأخير: {delay_display}
-• السبب/تبرير التأخير: {request_record.delay_note if request_record.delay_note else "لا يوجد"}
+📅 <b>التاريخ:</b> {request_record.date}
+⏰ <b>وقت التأخير:</b> من {from_time_str} إلى {to_time_str}
+⏱️ <b>مدة التأخير:</b> {delay_display}
+📝 <b>السبب/تبرير التأخير:</b> {request_record.delay_note if request_record.delay_note else "لا يوجد"}
                 """
             else:
-                details = "• لا توجد تفاصيل إضافية"
+                details = "📋 لا توجد تفاصيل إضافية"
 
             archive_message = f"""
 📋 <b>طلب معتمد - أرشيف</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• نوع الطلب: {"تبرير التأخير" if request_type == "delay" else request_type_arabic.get(request_type, request_type)}
-• الموظف: {employee.full_name_arabic}
-• القسم: {employee.department.dep_name}
-• المشرف: {supervisor.full_name_arabic}
+📄 <b>نوع الطلب:</b> {"تبرير التأخير" if request_type == "delay" else request_type_arabic.get(request_type, request_type)}
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+🏢 <b>القسم:</b> {employee.department.dep_name}
+👨‍💼 <b>المشرف:</b> {supervisor.full_name_arabic}
 {details}
-• وقت المعالجة: {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
             """
@@ -6631,44 +6762,44 @@ def handle_supervisor_request(request_type, request_id, action):
                     start_time_str = request_record.start_time.strftime('%I:%M %p') if request_record.start_time else "غير محدد"
                     end_time_str = request_record.end_time.strftime('%I:%M %p') if request_record.end_time else "غير محدد"
                     leave_details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• التاريخ: {request_record.start_date}
-• وقت البدء: {start_time_str}
-• وقت الانتهاء: {end_time_str}
-• المدة: {request_record.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>التاريخ:</b> {request_record.start_date}
+⏰ <b>وقت البدء:</b> {start_time_str}
+⏰ <b>وقت الانتهاء:</b> {end_time_str}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
                     """
                 elif request_record.type == 'daily':
                     leave_details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• التاريخ: {request_record.start_date}
-• المدة: {request_record.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>التاريخ:</b> {request_record.start_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
                     """
                 elif request_record.type == 'multi-day':
                     leave_details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• تاريخ البدء: {request_record.start_date}
-• تاريخ الانتهاء: {request_record.end_date}
-• المدة: {request_record.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>تاريخ البدء:</b> {request_record.start_date}
+📅 <b>تاريخ الانتهاء:</b> {request_record.end_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
                     """
                 else:
                     leave_details = f"""
-• نوع الإجازة: {arabic_type}
-• التصنيف: {arabic_classification}
-• تاريخ البدء: {request_record.start_date}
-• تاريخ الانتهاء: {request_record.end_date}
-• المدة: {request_record.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>تاريخ البدء:</b> {request_record.start_date}
+📅 <b>تاريخ الانتهاء:</b> {request_record.end_date}
+⏱️ <b>المدة:</b> {request_record.hours_requested:.2f} ساعة
                     """
                 
                 # رسالة إعلام للموظفين
                 announcement_message = f"""
 📢 <b>إشعار إجازة موظف</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• الموظف: {employee.full_name_arabic}
+👤 <b>الموظف:</b> {employee.full_name_arabic}
 {leave_details}
-• وقت الإعلان: {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+🕒 <b>وقت الإعلان:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                 """
@@ -7068,6 +7199,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
