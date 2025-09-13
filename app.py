@@ -6457,7 +6457,6 @@ def handle_supervisor_request(request_type, request_id, action):
         used_attr = f"{classification}_leave_used"
         remaining_attr = f"{classification}_leave_remaining"
         total_attr = f"{classification}_leave_total"
-        old_balance_attr = f"{classification}_leave_hours"  # للحفاظ على التوافق
         
         if action == 'approve' and old_status != 'approved':
             # الموافقة على طلب إجازة - نخصم من الرصيد
@@ -6474,14 +6473,11 @@ def handle_supervisor_request(request_type, request_id, action):
             setattr(employee, used_attr, getattr(employee, used_attr, 0) + hours_requested)
             # تقليل الرصيد المتبقي
             setattr(employee, remaining_attr, getattr(employee, remaining_attr, 0) - hours_requested)
-            # تحديث الحقول القديمة للحفاظ على التوافق
-            setattr(employee, old_balance_attr, getattr(employee, old_balance_attr, 0) - hours_requested)
             
         elif action == 'reject' and old_status == 'approved':
             # رفض طلب إجازة كان معتمداً سابقاً - نرجع الرصيد
             setattr(employee, used_attr, getattr(employee, used_attr, 0) - hours_requested)
             setattr(employee, remaining_attr, getattr(employee, remaining_attr, 0) + hours_requested)
-            setattr(employee, old_balance_attr, getattr(employee, old_balance_attr, 0) + hours_requested)
 
     if request_type == 'overtime' and action == 'approve':
         overtime_hours = request_record.add_attendance_minutes / 60
@@ -7199,6 +7195,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
