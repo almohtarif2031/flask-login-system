@@ -6017,10 +6017,13 @@ def get_supervisor_leave_requests():
     if not supervisor or supervisor.role != 'مشرف':
         return jsonify({"message": "غير مصرح بالوصول"}), 403
    
-    # جلب طلبات الإجازة للقسم التابع للمشرف
+    # جلب طلبات الإجازة للقسم التابع للمشرف مع أرصدة الموظفين
     leave_requests = db.session.query(
         LeaveRequest.id,
         Employee.full_name_arabic.label('employee_name'),
+        Employee.regular_leave_remaining,
+        Employee.sick_leave_remaining,
+        Employee.emergency_leave_remaining,
         LeaveRequest.start_date,
         LeaveRequest.end_date,
         LeaveRequest.hours_requested,
@@ -6030,10 +6033,7 @@ def get_supervisor_leave_requests():
         LeaveRequest.classification,
         LeaveRequest.start_time,
         LeaveRequest.end_time,
-        LeaveRequest.note,
-        LeaveRequest.regular_leave_hours,
-        LeaveRequest.sick_leave_hours,
-        LeaveRequest.emergency_leave_hours
+        LeaveRequest.note
     ).join(Employee, Employee.id == LeaveRequest.employee_id)\
      .filter(
         LeaveRequest.supervisor_id == supervisor_id,
@@ -6053,22 +6053,19 @@ def get_supervisor_leave_requests():
             'category': r.classification,
             'note': r.note or 'لا يوجد سبب محدد',
             'remaining_balance': {
-                'regular': r.regular_leave_hours,
-                'sick': r.sick_leave_hours,
-                'emergency': r.emergency_leave_hours
+                'regular': r.regular_leave_remaining,
+                'sick': r.sick_leave_remaining,
+                'emergency': r.emergency_leave_remaining
             }
         }
         
         # إضافة end_date وأوقات البداية والنهاية حسب نوع الإجازة
         if r.type == 'hourly':
-            # للإجازة الساعية: لا نرسل end_date
             request_data['start_time'] = r.start_time.strftime('%H:%M') if r.start_time else None
             request_data['end_time'] = r.end_time.strftime('%H:%M') if r.end_time else None
         elif r.type == 'daily':
-            # للإجازة اليومية: end_date يساوي start_date
             request_data['end_date'] = r.end_date.strftime('%Y-%m-%d') if r.end_date else r.start_date.strftime('%Y-%m-%d')
         elif r.type == 'multi-day':
-            # للإجازة متعددة الأيام: end_date مختلف
             request_data['end_date'] = r.end_date.strftime('%Y-%m-%d') if r.end_date else None
         
         result.append(request_data)
@@ -7071,6 +7068,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
