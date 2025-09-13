@@ -5781,7 +5781,7 @@ def get_employee_leave_balance():
             'employee_name': employee.full_name_arabic,
             'daily_work_hours': daily_work_hours,
             'balance': {
-                'normal': {
+                'regular': {
                     'total': employee.regular_leave_total,
                     'used': employee.regular_leave_used,
                     'remaining': employee.regular_leave_remaining
@@ -7071,6 +7071,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
