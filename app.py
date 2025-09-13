@@ -4717,6 +4717,11 @@ def create_leave_request():
             print("❌ بيانات ناقصة")
             return jsonify({"message": "بيانات ناقصة"}), 400
 
+        # تحويل التصنيف من 'normal' إلى 'regular'
+        if data['classification'] == 'normal':
+            data['classification'] = 'regular'
+            print("تم تحويل التصنيف من 'normal' إلى 'regular'")
+
         # تحقق من الحقول الإضافية
         if data['type'] == 'hourly':
             print("التحقق من الحقول الساعية...")
@@ -4804,11 +4809,6 @@ def create_leave_request():
         # التحقق من الرصيد
         classification = data['classification']
         print(f"تصنيف الإجازة: {classification}")
-        
-        # معالجة التصنيف 'normal' كمرادف لـ 'regular'
-        if classification == 'normal':
-            classification = 'regular'
-            print(f"تم تحويل التصنيف من 'normal' إلى 'regular'")
 
         if classification == 'regular':
             current_balance = employee.regular_leave_remaining
@@ -4887,6 +4887,15 @@ def create_leave_request():
             medical_message = "يرجى أيضاً التواصل مع مسؤول قسم الموارد البشرية لعرض التقارير الطبية لحالتك، مع تمنياتنا لك بالسلامة."
             print("تم إضافة رسالة طبية")
 
+        # إعداد رسائل التلغرام مع تواريخ مناسبة
+        date_info = ""
+        if data['type'] == 'multi-day':
+            date_info = f"📅 من {data['start_date']} إلى {data['end_date']}"
+        elif data['type'] == 'daily':
+            date_info = f"📅 تاريخ {data['start_date']}"
+        elif data['type'] == 'hourly':
+            date_info = f"📅 تاريخ {data['start_date']} ⏰ من {data['start_time']} إلى {data['end_time']}"
+
         # إرسال الإشعارات
         if not is_supervisor:
             print("إرسال إشعارات للمشرفين...")
@@ -4902,12 +4911,13 @@ def create_leave_request():
                 supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
                 if supervisor_employee and supervisor_employee.telegram_chatid:
                     telegram_message = f"""
-📋 <b>طلب إجازة جديد</b>
+👤 <b>طلب إجازة جديد</b>
 
-👤 <b>الموظف:</b> {employee.full_name_arabic}
-📅 <b>التصنيف:</b> {classification}
-⏰ <b>النوع:</b> {data['type']}
-🕒 <b>المدة:</b> {hours_requested} ساعة
+📋 <b>الموظف:</b> {employee.full_name_arabic}
+🏷️ <b>التصنيف:</b> {classification}
+📊 <b>النوع:</b> {data['type']}
+{date_info}
+⏱️ <b>المدة:</b> {hours_requested} ساعة
 📝 <b>ملاحظة:</b> {data['note']}
 
 {medical_message if medical_message else ''}
@@ -4926,9 +4936,9 @@ def create_leave_request():
                 telegram_message = f"""
 ✅ <b>تم قبول طلب إجازتك تلقائياً</b>
 
-📅 <b>التصنيف:</b> {classification}
-⏰ <b>النوع:</b> {data['type']}
-🕒 <b>المدة:</b> {hours_requested} ساعة
+🏷️ <b>التصنيف:</b> {classification}
+{date_info}
+⏱️ <b>المدة:</b> {hours_requested} ساعة
 📝 <b>ملاحظة:</b> {data['note']}
 
 {medical_message if medical_message else ''}
@@ -7061,6 +7071,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
