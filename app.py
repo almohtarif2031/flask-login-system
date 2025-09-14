@@ -4949,7 +4949,7 @@ def create_leave_request():
 📄 نوع الطلب: إجازة
 👤 الموظف: {employee.full_name_arabic}
 🏢 القسم: {employee.department.dep_name if employee.department else "غير محدد"}
-👨‍💼 المشرف: {Supervisor.query.get(new_request.supervisor_id).supervisor_name if new_request.supervisor_id else "غير محدد"}
+👨‍💼 المشرف: {Supervisor.query.get(new_request.supervisor_id).employee.full_name_arabic if new_request.supervisor_id else "غير محدد"}
 
 📋 نوع الإجازة: {data['type']}
 🏷️ التصنيف: {classification}
@@ -7330,6 +7330,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
