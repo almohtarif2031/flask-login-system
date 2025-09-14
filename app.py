@@ -5472,6 +5472,49 @@ def create_overtime_request():
                         send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
                 db.session.commit()
         
+        # إرسال رسالة الأرشيف للموافقة التلقائية (إذا كان مشرفاً)
+        if is_supervisor:
+            # حساب المدة بالساعات والدقائق
+            hours = int(total_minutes // 60)
+            minutes = int(total_minutes % 60)
+            duration_str = f"{hours} ساعة و {minutes} دقيقة" if minutes > 0 else f"{hours} ساعة"
+            
+            # إعداد رسالة الأرشيف
+            archive_message = f"""
+📋 طلب معتمد - أرشيف
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 نوع الطلب: عمل إضافي
+👤 الموظف: {employee.full_name_arabic}
+🏢 القسم: {employee.department.dep_name if employee.department else "غير محدد"}
+
+📅 التاريخ: {request_date}
+⏰ الوقت: من {start_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')} إلى {end_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')}
+⏱️ المدة: {duration_str}
+📝 السبب: {data['note']}
+                
+🕒 وقت المعالجة: {datetime.now(syria_tz).strftime('%Y-%m-%d %I:%M %p')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+            """
+            group_chat_id = "-4847322310"  # تأكد من أن هذا هو معرف المجموعة الصحيح
+            send_telegram_message(group_chat_id, archive_message)
+            
+            # إرسال رسالة تأكيد للموظف (المشرف) عبر التلغرام
+            if employee.telegram_chatid:
+                confirmation_message = f"""
+✅ <b>تم قبول طلب دوامك الإضافي تلقائياً</b>
+
+📅 التاريخ: {request_date}
+⏰ الوقت: من {start_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')} إلى {end_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')}
+⏱️ المدة: {duration_str}
+📝 الملاحظة: {data['note']}
+
+🕒 وقت المعالجة: {datetime.now(syria_tz).strftime('%Y-%m-%d %I:%M %p')}
+━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                send_telegram_message(employee.telegram_chatid, confirmation_message)
+        
         # رسالة مختلفة حسب نوع المستخدم
         if is_supervisor:
             message = "تم إنشاء وقبول طلب الدوام الإضافي تلقائياً"
@@ -7344,6 +7387,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
