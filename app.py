@@ -5347,13 +5347,14 @@ def create_overtime_request():
                         telegram_message = f"""
 🔔 <b>طلب دوام إضافي جديد</b>
 ━━━━━━━━━━━━━━━━━━━━
-• الموظف: {employee.full_name_arabic}
-• التاريخ: {request_date.strftime('%Y-%m-%d')}
-• الوقت: من {datetime.strptime(data['start_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')} إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
-• المدة: {hours_requested:.2f} ساعة
-• الملاحظة: {data['note']}
+👤 الموظف: {employee.full_name_arabic}
+📅 التاريخ: {request_date.strftime('%Y-%m-%d')}
+⏰ الوقت: من {datetime.strptime(data['start_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')} 
+     ⬅️ إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
+⏳ المدة: {hours_requested:.2f} ساعة
+📝 الملاحظة: {data['note']}
 ━━━━━━━━━━━━━━━━━━━━
-{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+🕒 وقت الطلب: {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                         """
                         send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
@@ -7202,6 +7203,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
