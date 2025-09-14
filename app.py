@@ -4919,6 +4919,9 @@ def create_leave_request():
 {medical_message if medical_message else ''}
                     """
                     send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
+                if classification == 'sick' and employee.telegram_chatid:
+                    sick_message = f"تم إرسال الإجازة المرضية إلى المشرف. {medical_message}"
+                    send_telegram_message(employee.telegram_chatid, sick_message)
         else:
             print("إرسال إشعار للموظف (مشرف)")
             notification = Notification(
@@ -7232,6 +7235,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
