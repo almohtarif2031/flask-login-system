@@ -5075,7 +5075,7 @@ def create_leave_request():
             "success": False,
             "message": "حدث خطأ أثناء حفظ الطلب",
             "error": str(e)
-        }), 50
+        }), 500
 @app.route('/api/compensation-leave-requests/<int:request_id>', methods=['PUT'])
 def update_compensation_leave_request(request_id):
     # التحقق من وجود session
@@ -7330,6 +7330,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
