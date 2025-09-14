@@ -6538,13 +6538,13 @@ def handle_supervisor_request(request_type, request_id, action):
                     
                 employee_message = f"""
 {'✅' if action == 'approve' else '❌'} <b>تم {'الموافقة على' if action == 'approve' else 'رفض'} طلب الإجازة</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 📋 <b>نوع الإجازة:</b> {arabic_type}
 🏷️ <b>التصنيف:</b> {arabic_classification}
 {details}
 🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                 """
                 
@@ -6558,14 +6558,14 @@ def handle_supervisor_request(request_type, request_id, action):
                 
                 employee_message = f"""
 {'✅' if action == 'approve' else '❌'} <b>تم {'الموافقة على' if action == 'approve' else 'رفض'} طلب العمل الإضافي</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 📅 <b>التاريخ:</b> {request_record.date}
 ⏰ <b>الوقت:</b> от {start_time_str} إلى {end_time_str}
 ⏱️ <b>المدة:</b> {time_display}
 📝 <b>السبب:</b> {request_record.notes}
 🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                 """
                 
@@ -6592,7 +6592,7 @@ def handle_supervisor_request(request_type, request_id, action):
                 
                 employee_message = f"""
 {'✅' if action == 'approve' else '❌'} <b>تم {'الموافقة على' if action == 'approve' else 'رفض'} طلب التعويض</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 📅 <b>التاريخ:</b> {date_str}
 ⏰ <b>من وقت:</b> {start_time_str}
@@ -6600,7 +6600,7 @@ def handle_supervisor_request(request_type, request_id, action):
 ⏱️ <b>المدة:</b> {hours:.2f} ساعة
 📝 <b>السبب:</b> {note}
 🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                 """
                 
@@ -6614,14 +6614,14 @@ def handle_supervisor_request(request_type, request_id, action):
 
                 employee_message = f"""
 {'✅' if action == 'approve' else '❌'} <b>تم {'تبرير' if action == 'approve' else 'رفض تبرير'} التأخير</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 📅 <b>التاريخ:</b> {request_record.date}
 ⏰ <b>وقت التأخير:</b> من {from_time_str} إلى {to_time_str}
 ⏱️ <b>مدة التأخير:</b> {delay_display}
 📝 <b>السبب/التبرير:</b> {request_record.delay_note if request_record.delay_note else "لا يوجد"}
 🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                 """
             
@@ -6741,14 +6741,14 @@ def handle_supervisor_request(request_type, request_id, action):
 
             archive_message = f"""
 📋 <b>طلب معتمد - أرشيف</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 📄 <b>نوع الطلب:</b> {"تبرير التأخير" if request_type == "delay" else request_type_arabic.get(request_type, request_type)}
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 🏢 <b>القسم:</b> {employee.department.dep_name}
 👨‍💼 <b>المشرف:</b> {supervisor.full_name_arabic}
 {details}
 🕒 <b>وقت المعالجة:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
             """
             
@@ -6800,11 +6800,11 @@ def handle_supervisor_request(request_type, request_id, action):
                 # رسالة إعلام للموظفين
                 announcement_message = f"""
 📢 <b>إشعار إجازة موظف</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 {leave_details}
 🕒 <b>وقت الإعلان:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                 """
                 
@@ -7001,12 +7001,12 @@ def justify_delay():
                 telegram_message = f"""
 ⏰ <b>طلب تبرير تأخير</b>
 ━━━━━━━━━━━━━━━━━━━━
-• الموظف: {employee.full_name_arabic}
-• التاريخ: {delay_record.date.strftime('%Y-%m-%d') if delay_record.date else 'غير محدد'}
-• مدة التأخير: {delay_minutes} دقيقة
-• سبب التبرير: {justification_note}
+👤 الموظف: {employee.full_name_arabic}
+📅 التاريخ: {delay_record.date.strftime('%Y-%m-%d') if delay_record.date else 'غير محدد'}
+⏱️ مدة التأخير: {delay_minutes} دقيقة
+📝 سبب التبرير: {justification_note}
 ━━━━━━━━━━━━━━━━━━━━
-{datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p").replace('AM','ص').replace('PM','م')}
+🕒 وقت الإرسال: {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p").replace('AM','ص').replace('PM','م')}
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
                 """
                 send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
@@ -7203,6 +7203,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
