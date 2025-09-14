@@ -4699,6 +4699,18 @@ def create_leave_request():
             return jsonify({"message": "يرجى تسجيل الدخول"}), 401
 
         syria_tz = pytz.timezone("Asia/Damascus")
+        leave_type_arabic = {
+            'hourly': 'ساعية',
+            'daily': 'يومية',
+            'multi-day': 'متعددة الأيام'
+        }
+
+            # تعريف قاموس تحويل تصنيفات الإجازات إلى العربية
+        classification_arabic = {
+                'regular': 'عادية',
+                'sick': 'مرضية',
+                'emergency': 'طارئة'
+        }
         employee_id = session['employee']['id']
         print(f"Employee ID: {employee_id}")
 
@@ -7330,6 +7342,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
