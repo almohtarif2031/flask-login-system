@@ -6974,23 +6974,34 @@ def justify_delay():
     if not delay_record:
         return jsonify({"success": False, "message": "سجل التأخير غير موجود"}), 404
 
-    # التحقق من أن الموظف الحالي هو صاحب سجل التأخير
     if delay_record.employee_id != employee.id:
         return jsonify({"success": False, "message": "ليس لديك صلاحية لتبرير هذا التأخير"}), 403
 
-    # إيجاد المشرفين على القسم
+    # حساب عدد ساعات التأخير
+    delay_hours = getattr(delay_record, 'minutes_delayed', 0) / 60
+
+    # التحقق من الرصيد المتبقي
+    if delay_hours > employee.regular_leave_remaining:
+        return jsonify({
+            "success": False,
+            "message": f"الرصيد غير كافٍ لتبرير التأخير. الساعات المطلوبة: {delay_hours:.2f}, المتبقي: {employee.regular_leave_remaining:.2f}"
+        }), 400
+
     department_supervisors = Supervisor.query.filter_by(dep_id=employee.department_id).all()
-    
-    # ربط المشرف الأول بالسجل
     if department_supervisors:
         delay_record.supervisor_id = department_supervisors[0].supervisor_ID
 
     syria_tz = pytz.timezone("Asia/Damascus")
 
     if employee.role == 'مشرف':
-        # قبول تلقائي
+        # قبول تلقائي بعد التحقق من الرصيد
         delay_record.status = 'Justified'
         delay_record.delay_note = justification_note
+
+        # خصم الرصيد مباشرة
+        employee.regular_leave_used += delay_hours
+        employee.regular_leave_remaining -= delay_hours
+
         db.session.commit()
         return jsonify({
             "success": True,
@@ -7005,7 +7016,6 @@ def justify_delay():
         delay_record.delay_note = justification_note
         db.session.commit()
 
-        # إرسال إشعار لكل مشرف في القسم
         for supervisor in department_supervisors:
             notification = Notification(
                 recipient_id=supervisor.supervisor_ID,
@@ -7013,7 +7023,6 @@ def justify_delay():
             )
             db.session.add(notification)
 
-            # إشعار تلغرام
             supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
             if supervisor_employee and supervisor_employee.telegram_chatid:
                 delay_minutes = getattr(delay_record, 'minutes_delayed', 'غير محددة')
@@ -7223,6 +7232,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
