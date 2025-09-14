@@ -4966,6 +4966,7 @@ def create_leave_request():
 📋 نوع الإجازة: {data['type']}
 🏷️ التصنيف: {classification}
 📅 التاريخ: {start_date}{f' إلى {end_date}' if data['type'] == 'multi-day' else ""}
+{f"⏰ الوقت: من {new_request.start_time.strftime('%I:%M %p')} إلى {new_request.end_time.strftime('%I:%M %p')}" if data['type'] == 'hourly' else ""}
 ⏱️ المدة: {hours_requested:.2f} ساعة
 📝 السبب: {data['note']}
 
@@ -7343,6 +7344,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
