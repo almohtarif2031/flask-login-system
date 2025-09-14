@@ -4709,7 +4709,7 @@ def create_leave_request():
         classification_arabic = {
                 'regular': 'عادية',
                 'sick': 'مرضية',
-                'emergency': 'طارئة'
+                'emergency': 'خاصة'
         }
         employee_id = session['employee']['id']
         print(f"Employee ID: {employee_id}")
@@ -4752,10 +4752,10 @@ def create_leave_request():
         print("=== أرصدة الإجازات الحالية ===")
         print(f"رصيد الإجازة العادية: {employee.regular_leave_remaining} ساعة")
         print(f"رصيد الإجازة المرضية: {employee.sick_leave_remaining} ساعة")
-        print(f"رصيد الإجازة الطارئة: {employee.emergency_leave_remaining} ساعة")
+        print(f"رصيد الإجازة الخاصة: {employee.emergency_leave_remaining} ساعة")
         print(f"الإجازة العادية المستخدمة: {employee.regular_leave_used} ساعة")
         print(f"الإجازة المرضية المستخدمة: {employee.sick_leave_used} ساعة")
-        print(f"الإجازة الطارئة المستخدمة: {employee.emergency_leave_used} ساعة")
+        print(f"الإجازة الخاصة المستخدمة: {employee.emergency_leave_used} ساعة")
         print("=============================")
 
         department_supervisors = Supervisor.query.filter_by(dep_id=employee.department_id).all()
@@ -4826,7 +4826,7 @@ def create_leave_request():
             print(f"الرصيد المتاح للإجازة المرضية: {current_balance} ساعة")
         elif classification == 'emergency':
             current_balance = employee.emergency_leave_remaining
-            print(f"الرصيد المتاح للإجازة الطارئة: {current_balance} ساعة")
+            print(f"الرصيد المتاح للإجازة الخاصة: {current_balance} ساعة")
         else:
             current_balance = 0
             print(f"❌ تصنيف غير معروف: {classification}")
@@ -4887,7 +4887,7 @@ def create_leave_request():
             elif classification == 'emergency':
                 employee.emergency_leave_used += hours_requested
                 employee.emergency_leave_remaining -= hours_requested
-                print(f"تم تحديث رصيد الإجازة الطارئة - المستخدم: {employee.emergency_leave_used}, المتبقي: {employee.emergency_leave_remaining}")
+                print(f"تم تحديث رصيد الإجازة الخاصة - المستخدم: {employee.emergency_leave_used}, المتبقي: {employee.emergency_leave_remaining}")
             print("تم خصم الرصيد")
 
         medical_message = ""
@@ -5060,10 +5060,10 @@ def create_leave_request():
         print("=== أرصدة الإجازات بعد التحديث ===")
         print(f"رصيد الإجازة العادية: {employee.regular_leave_remaining} ساعة")
         print(f"رصيد الإجازة المرضية: {employee.sick_leave_remaining} ساعة")
-        print(f"رصيد الإجازة الطارئة: {employee.emergency_leave_remaining} ساعة")
+        print(f"رصيد الإجازة الخاصة: {employee.emergency_leave_remaining} ساعة")
         print(f"الإجازة العادية المستخدمة: {employee.regular_leave_used} ساعة")
         print(f"الإجازة المرضية المستخدمة: {employee.sick_leave_used} ساعة")
-        print(f"الإجازة الطارئة المستخدمة: {employee.emergency_leave_used} ساعة")
+        print(f"الإجازة الخاصة المستخدمة: {employee.emergency_leave_used} ساعة")
         print("================================")
 
         print("=== انتهاء العملية بنجاح ===")
@@ -6527,7 +6527,7 @@ def handle_supervisor_request(request_type, request_id, action):
     classification_arabic = {
         'normal': 'عادية',
         'sick': 'مرضية',
-        'emergency': 'طارئة'
+        'emergency': 'خاصة'
     }
 
     model = model_map.get(request_type)
@@ -7344,6 +7344,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
