@@ -6477,12 +6477,15 @@ def handle_supervisor_request(request_type, request_id, action):
     if request_type == 'compensation':
         if action == 'approve' and old_status != 'approved':
             hours_requested = request_record.hours_requested if request_record.hours_requested else 0
+            
             # زيادة فقط الرصيد المتبقي
             employee.regular_leave_remaining += hours_requested
+            employee.regular_leave_used = max(0, employee.regular_leave_used - hours_requested)
         elif action == 'reject' and old_status == 'approved':
             hours_requested = request_record.hours_requested if request_record.hours_requested else 0
             # إلغاء الزيادة في حالة رفض طلب معتمد سابقاً
-            employee.regular_leave_remaining -= hours_requested   
+            employee.regular_leave_remaining -= hours_requested
+            employee.regular_leave_used += hours_requested
     if request_type == 'overtime' and action == 'approve':
         overtime_hours = request_record.add_attendance_minutes / 60
         # employee.overtime_balance += overtime_hours
@@ -7199,6 +7202,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
