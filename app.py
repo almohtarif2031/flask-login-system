@@ -442,7 +442,12 @@ def create_compensation_leave_request():
             "success": False,
             "message": "الموظف غير موجود"
         }), 404
-
+       # 🔴 التحقق من أهلية الموظف للتعويض
+    if employee.regular_leave_total == employee.regular_leave_remaining:
+        return jsonify({
+            "success": False,
+            "message": "لا يمكنك تقديم طلب تعويض لأن رصيد إجازاتك لم يُستخدم بعد"
+        }), 400
     # احصل على جميع المشرفين المسؤولين عن القسم
     department_supervisors = Supervisor.query.filter_by(dep_id=employee.department_id).all()
     if not department_supervisors:
@@ -7186,6 +7191,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
