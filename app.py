@@ -521,7 +521,7 @@ def create_compensation_leave_request():
         👤 الموظف: {employee.full_name_arabic}
         📅 تاريخ التعويض: {request_date.strftime('%Y-%m-%d')}
         ⏰ الوقت: من {datetime.strptime(data['start_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')} 
-           ➡️ إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
+           ⬅️ إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
         ⏳ المدة: {hours_requested:.2f} ساعة
         📝 الملاحظة: {data['note']}
         ━━━━━━━━━━━━━━━━━━━━
@@ -7186,6 +7186,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
