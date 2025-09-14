@@ -5006,8 +5006,8 @@ def create_leave_request():
 ⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
             """
 
-        # نص الإعلان
-        announcement_message = f"""
+            # نص الإعلان
+            announcement_message = f"""
 📢 <b>إشعار إجازة موظف</b>
 ━━━━━━━━━━━━━━━━━━━━
 👤 <b>الموظف:</b> {employee.full_name_arabic}
@@ -5017,30 +5017,30 @@ def create_leave_request():
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
         """
 
-        # جلب موظفين القسم مع استثناء مقدم الطلب
-        department_employees = Employee.query.filter_by(
-            department_id=employee.department_id
-        ).filter(
-            Employee.telegram_chatid.isnot(None),
-            Employee.id != employee.id
-        ).all()
+            # جلب موظفين القسم مع استثناء مقدم الطلب
+            department_employees = Employee.query.filter_by(
+                department_id=employee.department_id
+            ).filter(
+                Employee.telegram_chatid.isnot(None),
+                Employee.id != employee.id
+            ).all()
 
-        # إضافة المشرف للقائمة (لو عنده chatid)
-        supervisor = Supervisor.query.get(new_request.supervisor_id)
-        if supervisor:
-            supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
-            if supervisor_employee and supervisor_employee.telegram_chatid and supervisor_employee.id != employee.id:
-                department_employees.append(supervisor_employee)
+            # إضافة المشرف للقائمة (لو عنده chatid)
+            supervisor = Supervisor.query.get(new_request.supervisor_id)
+            if supervisor:
+                supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
+                if supervisor_employee and supervisor_employee.telegram_chatid and supervisor_employee.id != employee.id:
+                    department_employees.append(supervisor_employee)
 
-        # إرسال الإشعار لكل موظف
-        for dept_employee in department_employees:
-            try:
-                send_telegram_message(dept_employee.telegram_chatid, announcement_message)
-            except Exception as e:
-                print(f"فشل إرسال الإشعار إلى {dept_employee.full_name_arabic}: {str(e)}")
+            # إرسال الإشعار لكل موظف
+            for dept_employee in department_employees:
+                try:
+                    send_telegram_message(dept_employee.telegram_chatid, announcement_message)
+                except Exception as e:
+                    print(f"فشل إرسال الإشعار إلى {dept_employee.full_name_arabic}: {str(e)}")
 
-    except Exception as e:
-        print(f"❌ فشل إعلام الموظفين: {str(e)}")
+        except Exception as e:
+            print(f"❌ فشل إعلام الموظفين: {str(e)}")
 
         # طباعة أرصدة الإجازات بعد التحديث
         print("=== أرصدة الإجازات بعد التحديث ===")
@@ -7330,6 +7330,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
