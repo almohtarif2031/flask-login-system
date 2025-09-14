@@ -4988,68 +4988,69 @@ def create_leave_request():
                 start_time_str = new_request.start_time.strftime('%I:%M %p') if new_request.start_time else "غير محدد"
                 end_time_str = new_request.end_time.strftime('%I:%M %p') if new_request.end_time else "غير محدد"
                 leave_details = f"""
-    📋 <b>نوع الإجازة:</b> {arabic_type}
-    🏷️ <b>التصنيف:</b> {arabic_classification}
-    📅 <b>التاريخ:</b> {new_request.start_date}
-    ⏰ <b>وقت البدء:</b> {start_time_str}
-    ⏰ <b>وقت الانتهاء:</b> {end_time_str}
-    ⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>التاريخ:</b> {new_request.start_date}
+⏰ <b>وقت البدء:</b> {start_time_str}
+⏰ <b>وقت الانتهاء:</b> {end_time_str}
+⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
                 """
             elif new_request.type == 'daily':
                 leave_details = f"""
-    📋 <b>نوع الإجازة:</b> {arabic_type}
-    🏷️ <b>التصنيف:</b> {arabic_classification}
-    📅 <b>التاريخ:</b> {new_request.start_date}
-    ⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>التاريخ:</b> {new_request.start_date}
+⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
                 """
             elif new_request.type == 'multi-day':
                 leave_details = f"""
-    📋 <b>نوع الإجازة:</b> {arabic_type}
-    🏷️ <b>التصنيف:</b> {arabic_classification}
-    📅 <b>تاريخ البدء:</b> {new_request.start_date}
-    📅 <b>تاريخ الانتهاء:</b> {new_request.end_date}
-    ⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>تاريخ البدء:</b> {new_request.start_date}
+📅 <b>تاريخ الانتهاء:</b> {new_request.end_date}
+⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
                 """
             else:
                 leave_details = f"""
-    📋 <b>نوع الإجازة:</b> {arabic_type}
-    🏷️ <b>التصنيف:</b> {arabic_classification}
-    📅 <b>التاريخ:</b> {new_request.start_date}
-    ⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
+📋 <b>نوع الإجازة:</b> {arabic_type}
+🏷️ <b>التصنيف:</b> {arabic_classification}
+📅 <b>التاريخ:</b> {new_request.start_date}
+⏱️ <b>المدة:</b> {new_request.hours_requested:.2f} ساعة
                 """
 
-                # نص الإعلان
-                announcement_message = f"""
-    📢 <b>إشعار إجازة موظف</b>
-    ━━━━━━━━━━━━━━━━━━━━
-    👤 <b>الموظف:</b> {employee.full_name_arabic}
-    {leave_details}
-    🕒 <b>وقت الإعلان:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
-    ━━━━━━━━━━━━━━━━━━━━
-    𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+            # نص الإعلان (يتم تنفيذه لجميع أنواع الإجازات)
+            announcement_message = f"""
+📢 <b>إشعار إجازة موظف</b>
+━━━━━━━━━━━━━━━━━━━━
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+{leave_details}
+🕒 <b>وقت الإعلان:</b> {datetime.now(pytz.timezone("Asia/Damascus")).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
             """
 
-                # جلب موظفين القسم مع استثناء مقدم الطلب
-                department_employees = Employee.query.filter_by(
-                    department_id=employee.department_id
-                ).filter(
-                    Employee.telegram_chatid.isnot(None),
-                    Employee.id != employee.id
-                ).all()
+            # جلب موظفين القسم مع استثناء مقدم الطلب
+            department_employees = Employee.query.filter_by(
+                department_id=employee.department_id
+            ).filter(
+                Employee.telegram_chatid.isnot(None),  # تصحيح: استخدام None بدلاً من Null
+                Employee.id != employee.id
+            ).all()
 
-                # إضافة المشرف للقائمة (لو عنده chatid)
-                supervisor = Supervisor.query.get(new_request.supervisor_id)
-                if supervisor:
-                    supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
-                    if supervisor_employee and supervisor_employee.telegram_chatid and supervisor_employee.id != employee.id:
-                        department_employees.append(supervisor_employee)
+            # إضافة المشرف للقائمة (لو عنده chatid)
+            supervisor = Supervisor.query.get(new_request.supervisor_id)
+            if supervisor:
+                supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
+                if supervisor_employee and supervisor_employee.telegram_chatid and supervisor_employee.id != employee.id:
+                    department_employees.append(supervisor_employee)
 
-                # إرسال الإشعار لكل موظف
-                for dept_employee in department_employees:
-                    try:
-                        send_telegram_message(dept_employee.telegram_chatid, announcement_message)
-                    except Exception as e:
-                        print(f"فشل إرسال الإشعار إلى {dept_employee.full_name_arabic}: {str(e)}")
+            # إرسال الإشعار لكل موظف
+            for dept_employee in department_employees:
+                try:
+                    send_telegram_message(dept_employee.telegram_chatid, announcement_message)
+                    print(f"تم إرسال إشعار إلى {dept_employee.full_name_arabic}")
+                except Exception as e:
+                    print(f"فشل إرسال الإشعار إلى {dept_employee.full_name_arabic}: {str(e)}")
 
         except Exception as e:
             print(f"❌ فشل إعلام الموظفين: {str(e)}")
@@ -7342,6 +7343,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
