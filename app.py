@@ -4965,7 +4965,8 @@ def create_leave_request():
         send_telegram_message(group_chat_id, archive_message)
         db.session.commit()
         print("تم حفظ التغييرات في قاعدة البيانات")
-    try:
+
+        try:
         # تحويل النوع والتصنيف إلى العربية
         arabic_type = leave_type_arabic.get(new_request.type, new_request.type)
         arabic_classification = classification_arabic.get(new_request.classification, new_request.classification)
@@ -7329,6 +7330,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
