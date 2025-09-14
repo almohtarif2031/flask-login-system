@@ -6437,11 +6437,31 @@ def handle_supervisor_request(request_type, request_id, action):
     old_status = request_record.status
 
     # تحديث حالة الطلب
+# تحديث حالة الطلب
     if request_type == 'delay':
         if action == 'approve':
             request_record.status = 'Justified'
         elif action == 'reject':
             request_record.status = 'Unjustified'
+
+        # تعديل أرصدة التأخير مباشرة بعد تحديث الحالة
+        delay_hours = request_record.minutes_delayed / 60  # تحويل دقائق التأخير لساعات
+
+        if action == 'approve' and old_status != 'Justified':
+            if delay_hours > employee.regular_leave_remaining:
+                return jsonify({
+                    "message": "الرصيد غير كافي لتبرير هذا التأخير",
+                    "requested": delay_hours,
+                    "available": employee.regular_leave_remaining
+                }), 400
+
+            employee.regular_leave_used += delay_hours
+            employee.regular_leave_remaining -= delay_hours
+
+        elif action == 'reject' and old_status == 'Justified':
+            employee.regular_leave_used -= delay_hours
+            employee.regular_leave_remaining += delay_hours
+
     else:
         request_record.status = 'approved' if action == 'approve' else 'rejected'
 
@@ -7203,6 +7223,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
