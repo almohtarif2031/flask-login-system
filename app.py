@@ -7358,7 +7358,7 @@ def justify_delay():
 📄 <b>نوع الطلب:</b> تبرير التأخير
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 🏢 <b>القسم:</b> {employee.department.dep_name}
-👨‍💼 <b>المشرف:</b> {employee.full_name_arabic} (تلقائي)
+👨‍💼 <b>المشرف:</b> {employee.full_name_arabic}
 📅 <b>التاريخ:</b> {delay_record.date.strftime('%Y-%m-%d') if delay_record.date else 'غير محدد'}
 ⏰ <b>وقت التأخير:</b> من {from_time_str} إلى {to_time_str}
 ⏱️ <b>مدة التأخير:</b> {delay_display}
@@ -7629,6 +7629,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
