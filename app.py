@@ -133,7 +133,7 @@ class Employee(db.Model):
     date_of_birth = db.Column(db.Date, nullable=False)  # المواليد
     national_id = db.Column(db.String(20), nullable=False)  # الرقم الوطني
     job_level = db.Column(db.String(20), nullable=False)  # الدرجة الوظيفية
-    promotion = db.Column(db.String(100))  # الترقية (اختياري)
+    promotion = db.Column(db.Text,nullable=True)  # الترقية (اختياري)
     career_stages = db.Column(db.Text)  # المراحل الوظيفية (اختياري)
     employee_status = db.Column(db.String(20), nullable=False)  # وضع الموظف
     work_location = db.Column(db.String(20), nullable=False)  # مكان العمل
@@ -7629,6 +7629,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
