@@ -110,8 +110,8 @@ class Employee(db.Model):
     telegram_chatid = db.Column(db.String(50))
     phone = db.Column(db.String(20), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.dep_id'), nullable=False)
-    position = db.Column(db.String(100), nullable=False)
-    position_english = db.Column(db.String(100), nullable=False)  # المنصب الوظيفي بالانكليزية
+    position = db.Column(db.Text, nullable=False)  # المنصب الوظيفي
+    position_english = db.Column(db.Text, nullable=False)  # المنصب الوظيفي بالانكليزية
     status = db.Column(db.String(10), default='off')  # قيمته إما 'on' أو 'off'
     # ✅ يجب استخدام db.String وليس String فقط
     role = db.Column(db.String(20), nullable=False)
@@ -126,10 +126,10 @@ class Employee(db.Model):
     date_of_joining = db.Column(db.Date, nullable=False)
     notes = db.Column(db.Text, nullable=True)
     # ✅ الحقول الجديدة المطلوبة
-    study_major = db.Column(db.String(150), nullable=False)  # الدراسة والتخصص
-    governorate = db.Column(db.String(100), nullable=False)  # المحافظة
+    study_major = db.Column(db.Text, nullable=False)  # الدراسة والتخصص
+    governorate = db.Column(db.Text, nullable=False)  # المحافظة
     relative_phone = db.Column(db.String(20))  # رقم شخص قريب (اختياري)
-    relative_relation = db.Column(db.String(50))  # صلة القرابة (اختياري)
+    relative_relation = db.Column(db.Text, nullable=True)  # صلة القرابة (اختياري)
     date_of_birth = db.Column(db.Date, nullable=False)  # المواليد
     national_id = db.Column(db.String(20), nullable=False)  # الرقم الوطني
     job_level = db.Column(db.String(20), nullable=False)  # الدرجة الوظيفية
@@ -143,7 +143,7 @@ class Employee(db.Model):
     trainings = db.Column(db.Text)  # تدريبات (اختياري)
     external_privileges = db.Column(db.Text)  # امتيازات خارجية (اختياري)
     special_leave_record = db.Column(db.Text)  # سجل إجازات خاصة (اختياري)
-    drive_folder_link = db.Column(db.String(255))  # رابط مجلد الموظف درايف (اختياري)
+    drive_folder_link = db.Column(db.Text, nullable=True)  # رابط مجلد الموظف درايف (اختياري)
     is_leave = db.Column(db.String(10), default='off')  # إجازة ساعية
     is_vacation = db.Column(db.String(10), default='off')  # إجازة رسمية أو سنوية
     is_weekly_day_off = db.Column(db.String(10), default='off')  # يوم عطلة أسبوعية
@@ -7629,6 +7629,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
