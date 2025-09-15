@@ -7265,97 +7265,185 @@ def update_compensation_time(request_id):
 def justify_delay():
     if 'employee' not in session:
         return jsonify({"success": False, "message": "يرجى تسجيل الدخول"}), 401
-
+        
     data = request.get_json()
     delay_id = data.get('delay_id')
     justification_note = data.get('justification_note')
-
+    
     if not delay_id or not justification_note:
         return jsonify({"success": False, "message": "معرّف التأخير وسبب التبرير مطلوبان"}), 400
-
+    
     employee_id = session['employee']['id']
     employee = db.session.get(Employee, employee_id)
     
     if not employee:
         return jsonify({"success": False, "message": "الموظف غير موجود"}), 404
-
+        
     delay_record = db.session.get(WorkDelayArchive, delay_id)
     if not delay_record:
         return jsonify({"success": False, "message": "سجل التأخير غير موجود"}), 404
-
+        
     if delay_record.employee_id != employee.id:
         return jsonify({"success": False, "message": "ليس لديك صلاحية لتبرير هذا التأخير"}), 403
-
+    
     # حساب عدد ساعات التأخير
     delay_hours = getattr(delay_record, 'minutes_delayed', 0) / 60
-
-    # التحقق من الرصيد المتبقي
+    
+    # التحقق من الرصيد المتبقي - هذا ينطبق على جميع الموظفين بما فيهم المشرفين
     if delay_hours > employee.regular_leave_remaining:
         return jsonify({
             "success": False,
             "message": f"الرصيد غير كافٍ لتبرير التأخير. الساعات المطلوبة: {delay_hours:.2f}, المتبقي: {employee.regular_leave_remaining:.2f}"
         }), 400
-
+    
     department_supervisors = Supervisor.query.filter_by(dep_id=employee.department_id).all()
     if department_supervisors:
         delay_record.supervisor_id = department_supervisors[0].supervisor_ID
-
+    
     syria_tz = pytz.timezone("Asia/Damascus")
-
-    if employee.role == 'مشرف':
-        # قبول تلقائي بعد التحقق من الرصيد
+    
+    # التحقق من كون الموظف مشرفًا
+    is_supervisor = Supervisor.query.filter_by(supervisor_ID=employee_id).first() is not None
+    
+    if is_supervisor:
+        # للمشرف - التبرير التلقائي بعد التحقق من الرصيد
         delay_record.status = 'Justified'
         delay_record.delay_note = justification_note
-
+        
         # خصم الرصيد مباشرة
         employee.regular_leave_used += delay_hours
         employee.regular_leave_remaining -= delay_hours
-
-        db.session.commit()
-        return jsonify({
-            "success": True,
-            "message": "تم تبرير التأخير بنجاح",
-            "immediately_justified": True
-        })
-    else:
-        if not department_supervisors:
-            return jsonify({"success": False, "message": "لا يوجد مشرفين في القسم"}), 400
-
-        delay_record.status = 'pending'
-        delay_record.delay_note = justification_note
-        db.session.commit()
-
-        for supervisor in department_supervisors:
+        
+        try:
+            db.session.commit()
+            
+            # إرسال إشعار للموظف (المشرف نفسه)
             notification = Notification(
-                recipient_id=supervisor.supervisor_ID,
-                message=f"طلب تبرير تأخير جديد من الموظف {employee.full_name_arabic}",
+                recipient_id=employee_id,
+                message="تم تبرير التأخير تلقائياً"
             )
             db.session.add(notification)
-
-            supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
-            if supervisor_employee and supervisor_employee.telegram_chatid:
-                delay_minutes = getattr(delay_record, 'minutes_delayed', 'غير محددة')
-
-                telegram_message = f"""
-⏰ <b>طلب تبرير تأخير</b>
+            
+            # إرسال رسالة تلغرام للموظف (المشرف)
+            if employee.telegram_chatid:
+                delay_minutes = getattr(delay_record, 'minutes_delayed', 0)
+                delay_display = f"{delay_hours:.0f} ساعة و {delay_minutes % 60} دقيقة" if delay_hours >= 1 else f"{delay_minutes} دقيقة"
+                from_time_str = delay_record.from_timestamp.strftime('%I:%M %p') if delay_record.from_timestamp else "غير محدد"
+                to_time_str = delay_record.to_timestamp.strftime('%I:%M %p') if delay_record.to_timestamp else "غير محدد"
+                
+                employee_message = f"""
+✅ <b>تم تبرير التأخير تلقائياً</b>
+━━━━━━━━━━━━━━━━━━━━
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+📅 <b>التاريخ:</b> {delay_record.date.strftime('%Y-%m-%d') if delay_record.date else 'غير محدد'}
+⏰ <b>وقت التأخير:</b> من {from_time_str} إلى {to_time_str}
+⏱️ <b>مدة التأخير:</b> {delay_display}
+📝 <b>سبب/التبرير:</b> {justification_note}
+🕒 <b>وقت المعالجة:</b> {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                send_telegram_message(employee.telegram_chatid, employee_message)
+            
+            # إرسال الطلب المعتمد إلى مجموعة التلغرام كأرشيف
+            try:
+                delay_minutes = getattr(delay_record, 'minutes_delayed', 0)
+                delay_display = f"{delay_hours:.0f} ساعة و {delay_minutes % 60} دقيقة" if delay_hours >= 1 else f"{delay_minutes} دقيقة"
+                from_time_str = delay_record.from_timestamp.strftime('%I:%M %p') if delay_record.from_timestamp else "غير محدد"
+                to_time_str = delay_record.to_timestamp.strftime('%I:%M %p') if delay_record.to_timestamp else "غير محدد"
+                
+                archive_message = f"""
+📋 <b>طلب معتمد - أرشيف</b>
+━━━━━━━━━━━━━━━━━━━━
+📄 <b>نوع الطلب:</b> تبرير التأخير
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+🏢 <b>القسم:</b> {employee.department.dep_name}
+👨‍💼 <b>المشرف:</b> {employee.full_name_arabic} (تلقائي)
+📅 <b>التاريخ:</b> {delay_record.date.strftime('%Y-%m-%d') if delay_record.date else 'غير محدد'}
+⏰ <b>وقت التأخير:</b> من {from_time_str} إلى {to_time_str}
+⏱️ <b>مدة التأخير:</b> {delay_display}
+📝 <b>سبب/تبرير التأخير:</b> {justification_note}
+🕒 <b>وقت المعالجة:</b> {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                group_chat_id = "-4847322310"
+                send_telegram_message(group_chat_id, archive_message)
+            except Exception as e:
+                print(f"فشل في إرسال الأرشيف إلى التلغرام: {str(e)}")
+            
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "تم تبرير التأخير تلقائياً",
+                "immediately_justified": True,
+                "hours_deducted": delay_hours
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                "success": False,
+                "message": f"حدث خطأ أثناء معالجة الطلب: {str(e)}"
+            }), 500
+    
+    else:
+        # للموظف العادي - إرسال للمشرف
+        if not department_supervisors:
+            return jsonify({"success": False, "message": "لا يوجد مشرفين في القسم"}), 400
+        
+        delay_record.status = 'pending'
+        delay_record.delay_note = justification_note
+        
+        try:
+            db.session.commit()
+            
+            # إرسال إشعارات للمشرفين
+            for supervisor in department_supervisors:
+                notification = Notification(
+                    recipient_id=supervisor.supervisor_ID,
+                    message=f"طلب تبرير تأخير جديد من الموظف {employee.full_name_arabic}",
+                )
+                db.session.add(notification)
+                
+                # إرسال إشعار تلغرام للمشرف
+                supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
+                if supervisor_employee and supervisor_employee.telegram_chatid:
+                    delay_minutes = getattr(delay_record, 'minutes_delayed', 0)
+                    delay_display = f"{delay_hours:.0f} ساعة و {delay_minutes % 60} دقيقة" if delay_hours >= 1 else f"{delay_minutes} دقيقة"
+                    from_time_str = delay_record.from_timestamp.strftime('%I:%M %p') if delay_record.from_timestamp else "غير محدد"
+                    to_time_str = delay_record.to_timestamp.strftime('%I:%M %p') if delay_record.to_timestamp else "غير محدد"
+                    
+                    telegram_message = f"""
+🔔 <b>طلب تبرير تأخير جديد</b>
 ━━━━━━━━━━━━━━━━━━━━
 👤 الموظف: {employee.full_name_arabic}
 📅 التاريخ: {delay_record.date.strftime('%Y-%m-%d') if delay_record.date else 'غير محدد'}
-⏱️ مدة التأخير: {delay_minutes} دقيقة
+⏰ وقت التأخير: من {from_time_str} إلى {to_time_str}
+⏱️ مدة التأخير: {delay_display}
 📝 سبب التبرير: {justification_note}
 ━━━━━━━━━━━━━━━━━━━━
 🕒 وقت الإرسال: {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p").replace('AM','ص').replace('PM','م')}
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
-                """
-                send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
-
-        db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "message": "تم إرسال طلب التبرير إلى المشرف",
-            "immediately_justified": False
-        })
+                    """
+                    send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
+            
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "تم إرسال طلب التبرير إلى المشرف",
+                "immediately_justified": False,
+                "hours_to_deduct": delay_hours
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                "success": False,
+                "message": f"حدث خطأ أثناء إرسال الطلب: {str(e)}"
+            }), 500
 @app.route('/api/employees-list-super', methods=['GET'])
 def get_employees_list_super():
     try:
@@ -7541,6 +7629,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
