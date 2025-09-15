@@ -550,7 +550,7 @@ def create_compensation_leave_request():
 📄 <b>نوع الطلب:</b> تعويض
 👤 <b>الموظف:</b> {employee.full_name_arabic}
 🏢 <b>القسم:</b> {employee.department.dep_name}
-👨‍💼 <b>المشرف:</b> {employee.full_name_arabic} (تلقائي)
+👨‍💼 <b>المشرف:</b> {employee.full_name_arabic}
 📅 <b>التاريخ:</b> {date_str}
 ⏰ <b>من وقت:</b> {start_time_str}
 ⏰ <b>إلى وقت:</b> {end_time_str}
@@ -7541,6 +7541,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
