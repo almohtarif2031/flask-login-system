@@ -509,32 +509,90 @@ def create_compensation_leave_request():
         db.session.add(new_request)
         db.session.commit()
         
+        # إذا كان المشرف قبل الطلب تلقائياً، أضف الساعات إلى رصيده
+        if is_supervisor:
+            employee.regular_leave_remaining += hours_requested
+            employee.regular_leave_used = max(0, employee.regular_leave_used - hours_requested)
+            
+            # إرسال إشعار للموظف (المشرف نفسه)
+            notification = Notification(
+                recipient_id=employee_id,
+                message="تم قبول طلب التعويض تلقائياً"
+            )
+            db.session.add(notification)
+            
+            # إرسال رسالة تلغرام للموظف (المشرف)
+            if employee.telegram_chatid:
+                date_str = request_date.strftime('%Y-%m-%d')
+                start_time_str = start_time.strftime('%I:%M %p').replace('AM','ص').replace('PM','م')
+                end_time_str = end_time.strftime('%I:%M %p').replace('AM','ص').replace('PM','م')
+                
+                employee_message = f"""
+✅ <b>تم قبول طلب التعويض تلقائياً</b>
+━━━━━━━━━━━━━━━━━━━━
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+📅 <b>التاريخ:</b> {date_str}
+⏰ <b>من وقت:</b> {start_time_str}
+⏰ <b>إلى وقت:</b> {end_time_str}
+⏱️ <b>المدة:</b> {hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {data['note']}
+🕒 <b>وقت المعالجة:</b> {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                send_telegram_message(employee.telegram_chatid, employee_message)
+            
+            # إرسال الطلب المعتمد إلى مجموعة التلغرام كأرشيف
+            try:
+                archive_message = f"""
+📋 <b>طلب معتمد - أرشيف</b>
+━━━━━━━━━━━━━━━━━━━━
+📄 <b>نوع الطلب:</b> تعويض
+👤 <b>الموظف:</b> {employee.full_name_arabic}
+🏢 <b>القسم:</b> {employee.department.dep_name}
+👨‍💼 <b>المشرف:</b> {employee.full_name_arabic} (تلقائي)
+📅 <b>التاريخ:</b> {date_str}
+⏰ <b>من وقت:</b> {start_time_str}
+⏰ <b>إلى وقت:</b> {end_time_str}
+⏱️ <b>المدة:</b> {hours_requested:.2f} ساعة
+📝 <b>السبب:</b> {data['note']}
+🕒 <b>وقت المعالجة:</b> {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                """
+                group_chat_id = "-4847322310"
+                send_telegram_message(group_chat_id, archive_message)
+            except Exception as e:
+                print(f"فشل في إرسال الأرشيف إلى التلغرام: {str(e)}")
+        
         # إرسال إشعارات للمشرفين إذا كان الموظف غير مشرف
-        if not is_supervisor:
+        else:
             for supervisor in department_supervisors:
                 notification = Notification(
                     recipient_id=supervisor.supervisor_ID,
                     message=f"طلب تعويض إجازة جديد من الموظف {employee.full_name_arabic}"
                 )
                 db.session.add(notification)
-                                # إرسال إشعار تلغرام
+                
+                # إرسال إشعار تلغرام
                 supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
                 if supervisor_employee and supervisor_employee.telegram_chatid:
                     telegram_message = f"""
-        🔔 <b>طلب تعويض إجازة جديد</b>
-        ━━━━━━━━━━━━━━━━━━━━
-        👤 الموظف: {employee.full_name_arabic}
-        📅 تاريخ التعويض: {request_date.strftime('%Y-%m-%d')}
-        ⏰ الوقت: من {datetime.strptime(data['start_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')} 
-           ⬅️ إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
-        ⏳ المدة: {hours_requested:.2f} ساعة
-        📝 الملاحظة: {data['note']}
-        ━━━━━━━━━━━━━━━━━━━━
-        🕒 {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
-        𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
-        """
+🔔 <b>طلب تعويض إجازة جديد</b>
+━━━━━━━━━━━━━━━━━━━━
+👤 الموظف: {employee.full_name_arabic}
+📅 تاريخ التعويض: {request_date.strftime('%Y-%m-%d')}
+⏰ الوقت: من {datetime.strptime(data['start_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')} 
+   ⬅️ إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
+⏳ المدة: {hours_requested:.2f} ساعة
+📝 الملاحظة: {data['note']}
+━━━━━━━━━━━━━━━━━━━━
+🕒 {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+                    """
                     send_telegram_message(supervisor_employee.telegram_chatid, telegram_message)
-            db.session.commit()
+        
+        db.session.commit()
         
         return jsonify({
             "success": True,
@@ -5389,6 +5447,26 @@ def create_overtime_request():
         start_time = datetime.strptime(data['start_time'], '%H:%M').time()
         end_time = datetime.strptime(data['end_time'], '%H:%M').time()
        
+        # التحقق مما إذا كان التاريخ يوم عطلة
+        is_holiday = False
+        holiday_reason = ""
+
+        # 1. التحقق من العطل الرسمية
+        official_holiday = OfficialHoliday.query.filter_by(holiday_date=request_date).first()
+        if official_holiday:
+            is_holiday = True
+            holiday_reason = f"عطلة رسمية: {official_holiday.description}"
+        
+        # 2. التحقق من العطلة الأسبوعية للموظف
+        if not is_holiday:
+            # الحصول على يوم الأسبوع للتاريخ المطلوب (باللغة الإنجليزية)
+            weekday_name = request_date.strftime('%A')  # Monday, Tuesday, etc.
+            
+            # التحقق إذا كان هذا اليوم هو يوم العطلة الأسبوعية للموظف
+            if employee.weekly_day_off and employee.weekly_day_off.lower() == weekday_name.lower():
+                is_holiday = True
+                holiday_reason = f"عطلة أسبوعية: {employee.weekly_day_off}"
+       
         # حساب الفرق بالدقائق
         start_datetime = datetime.combine(request_date, start_time)
         end_datetime = datetime.combine(request_date, end_time)
@@ -5430,7 +5508,7 @@ def create_overtime_request():
             name=employee.full_name_english,
             arname=employee.full_name_arabic,
             role=employee.role,
-            is_holiday=False,  # يمكن تحسين هذا لاحقاً للتحقق من العطل
+            is_holiday=is_holiday,
             start_time=start_time,
             end_time=end_time,
             add_attendance_minutes=total_minutes,
@@ -5456,6 +5534,9 @@ def create_overtime_request():
                     # إرسال إشعار تلغرام
                     supervisor_employee = db.session.get(Employee, supervisor.supervisor_ID)
                     if supervisor_employee and supervisor_employee.telegram_chatid:
+                        # إضافة معلومات العطلة إذا كانت موجودة
+                        holiday_info = f"\n🏖️ نوع اليوم: {holiday_reason}" if is_holiday else ""
+                        
                         telegram_message = f"""
 🔔 <b>طلب دوام إضافي جديد</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -5465,6 +5546,7 @@ def create_overtime_request():
      ⬅️ إلى {datetime.strptime(data['end_time'], '%H:%M').strftime('%I:%M %p').replace('AM','ص').replace('PM','م')}
 ⏳ المدة: {hours_requested:.2f} ساعة
 📝 الملاحظة: {data['note']}
+{holiday_info}
 ━━━━━━━━━━━━━━━━━━━━
 🕒 وقت الطلب: {datetime.now(syria_tz).strftime("%Y-%m-%d %I:%M %p")}
 𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
@@ -5479,6 +5561,9 @@ def create_overtime_request():
             minutes = int(total_minutes % 60)
             duration_str = f"{hours} ساعة و {minutes} دقيقة" if minutes > 0 else f"{hours} ساعة"
             
+            # إضافة معلومات العطلة إذا كانت موجودة
+            holiday_info = f"\n🏖️ نوع اليوم: {holiday_reason}" if is_holiday else ""
+            
             # إعداد رسالة الأرشيف
             archive_message = f"""
 📋 طلب معتمد - أرشيف
@@ -5491,6 +5576,7 @@ def create_overtime_request():
 ⏰ الوقت: من {start_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')} إلى {end_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')}
 ⏱️ المدة: {duration_str}
 📝 السبب: {data['note']}
+{holiday_info}
                 
 🕒 وقت المعالجة: {datetime.now(syria_tz).strftime('%Y-%m-%d %I:%M %p')}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -5501,6 +5587,9 @@ def create_overtime_request():
             
             # إرسال رسالة تأكيد للموظف (المشرف) عبر التلغرام
             if employee.telegram_chatid:
+                # إضافة معلومات العطلة إذا كانت موجودة
+                holiday_info = f"\n🏖️ نوع اليوم: {holiday_reason}" if is_holiday else ""
+                
                 confirmation_message = f"""
 ✅ <b>تم قبول طلب دوامك الإضافي تلقائياً</b>
 
@@ -5508,6 +5597,7 @@ def create_overtime_request():
 ⏰ الوقت: من {start_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')} إلى {end_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')}
 ⏱️ المدة: {duration_str}
 📝 الملاحظة: {data['note']}
+{holiday_info}
 
 🕒 وقت المعالجة: {datetime.now(syria_tz).strftime('%Y-%m-%d %I:%M %p')}
 ━━━━━━━━━━━━━━━━━━━━
@@ -5520,13 +5610,19 @@ def create_overtime_request():
             message = "تم إنشاء وقبول طلب الدوام الإضافي تلقائياً"
         else:
             message = "تم إرسال طلب الدوام الإضافي بنجاح"
+            
+        # إضافة معلومات حول نوع اليوم إذا كان عطلة
+        if is_holiday:
+            message += f" (يوم {holiday_reason})"
         
         return jsonify({
             'success': True,
             'message': message,
             'request_id': new_request.id,
             'hours_requested': round(hours_requested, 2),
-            'is_auto_approved': is_supervisor
+            'is_auto_approved': is_supervisor,
+            'is_holiday': is_holiday,
+            'holiday_reason': holiday_reason if is_holiday else ""
         }), 201
         
     except Exception as e:
@@ -5548,6 +5644,13 @@ def update_overtime_request(request_id):
 
         # جلب معرف الموظف من الـ session
         employee_id = session['employee']['id']
+        employee = db.session.get(Employee, employee_id)
+        
+        if not employee:
+            return jsonify({
+                'success': False,
+                'message': 'الموظف غير موجود'
+            }), 404
         
         # البحث عن الطلب
         overtime_request = AdditionalAttendanceRecord.query.filter_by(
@@ -5572,7 +5675,7 @@ def update_overtime_request(request_id):
         data = request.get_json()
         
         # التحقق من وجود البيانات المطلوبة
-        required_fields = ['date', 'start_time', 'end_time', 'hours_requested', 'note']
+        required_fields = ['date', 'start_time', 'end_time', 'note']
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({
@@ -5587,6 +5690,26 @@ def update_overtime_request(request_id):
         start_time = datetime.strptime(data['start_time'], '%H:%M').time()
         end_time = datetime.strptime(data['end_time'], '%H:%M').time()
         
+        # التحقق مما إذا كان التاريخ يوم عطلة
+        is_holiday = False
+        holiday_reason = ""
+
+        # 1. التحقق من العطل الرسمية
+        official_holiday = OfficialHoliday.query.filter_by(holiday_date=request_date).first()
+        if official_holiday:
+            is_holiday = True
+            holiday_reason = f"عطلة رسمية: {official_holiday.description}"
+        
+        # 2. التحقق من العطلة الأسبوعية للموظف
+        if not is_holiday:
+            # الحصول على يوم الأسبوع للتاريخ المطلوب (باللغة الإنجليزية)
+            weekday_name = request_date.strftime('%A')  # Monday, Tuesday, etc.
+            
+            # التحقق إذا كان هذا اليوم هو يوم العطلة الأسبوعية للموظف
+            if employee.weekly_day_off and employee.weekly_day_off.lower() == weekday_name.lower():
+                is_holiday = True
+                holiday_reason = f"عطلة أسبوعية: {employee.weekly_day_off}"
+        
         # حساب الدقائق
         start_datetime = datetime.combine(request_date, start_time)
         end_datetime = datetime.combine(request_date, end_time)
@@ -5597,6 +5720,9 @@ def update_overtime_request(request_id):
         
         time_diff = end_datetime - start_datetime
         total_minutes = int(time_diff.total_seconds() / 60)
+
+        # حساب الساعات المطلوبة
+        hours_requested = total_minutes / 60.0
 
         # التحقق من عدم وجود طلب آخر لنفس التاريخ (ما عدا الطلب الحالي)
         existing_request = AdditionalAttendanceRecord.query.filter(
@@ -5617,13 +5743,42 @@ def update_overtime_request(request_id):
         overtime_request.end_time = end_time
         overtime_request.add_attendance_minutes = total_minutes
         overtime_request.notes = data['note']
+        overtime_request.is_holiday = is_holiday  # تحديث حالة العطلة
 
         # حفظ التغييرات
         db.session.commit()
 
+        # إرسال رسالة تأكيد للموظف عبر التلغرام إذا كان لديه معرف تلغرام
+        if employee.telegram_chatid:
+            # حساب المدة بالساعات والدقائق
+            hours = int(total_minutes // 60)
+            minutes = int(total_minutes % 60)
+            duration_str = f"{hours} ساعة و {minutes} دقيقة" if minutes > 0 else f"{hours} ساعة"
+            
+            # إضافة معلومات العطلة إذا كانت موجودة
+            holiday_info = f"\n🏖️ نوع اليوم: {holiday_reason}" if is_holiday else ""
+            
+            confirmation_message = f"""
+✏️ <b>تم تعديل طلب الدوام الإضافي بنجاح</b>
+
+📅 التاريخ: {request_date}
+⏰ الوقت: من {start_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')} إلى {end_time.strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')}
+⏱️ المدة: {duration_str}
+📝 الملاحظة: {data['note']}
+{holiday_info}
+
+🕒 وقت التعديل: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}
+━━━━━━━━━━━━━━━━━━━━
+𝑨𝒍𝒎𝒐𝒉𝒕𝒂𝒓𝒊𝒇 🅗🅡
+            """
+            send_telegram_message(employee.telegram_chatid, confirmation_message)
+
         return jsonify({
             'success': True,
-            'message': 'تم تحديث طلب الدوام الإضافي بنجاح'
+            'message': 'تم تحديث طلب الدوام الإضافي بنجاح',
+            'is_holiday': is_holiday,
+            'holiday_reason': holiday_reason if is_holiday else "",
+            'hours_requested': round(hours_requested, 2)
         }), 200
 
     except Exception as e:
@@ -5632,7 +5787,6 @@ def update_overtime_request(request_id):
             'success': False,
             'message': f'حدث خطأ أثناء تحديث الطلب: {str(e)}'
         }), 500
-
 
 @app.route('/api/overtime-requests/<int:request_id>', methods=['DELETE'])
 def delete_overtime_request(request_id):
@@ -7387,6 +7541,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
