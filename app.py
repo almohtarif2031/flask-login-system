@@ -2037,6 +2037,7 @@ def get_employees():
                 # الحقول الأساسية
                 'id': emp.id,
                 'name': emp.full_name_arabic,
+                'full_name_english': emp.full_name_english,  # تم التعديل هنا
                 'employee_id': emp.employee_number,
                 'department': emp.department.dep_name if emp.department else 'غير محدد',
                 'position': emp.position,
@@ -7629,6 +7630,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
