@@ -4962,7 +4962,7 @@ def create_leave_request():
             date_info = f"📅 تاريخ {data['start_date']}"
         elif data['type'] == 'hourly':
             date_info = f"📅 تاريخ {data['start_date']} ⏰ من {data['start_time']} إلى {data['end_time']}"
-
+        archive_message = None  # تعريف مسبق
         # إرسال الإشعارات
         if not is_supervisor:
             print("إرسال إشعارات للمشرفين...")
@@ -7630,6 +7630,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
